@@ -2,9 +2,17 @@
 
 Java 8+、Spring Boot 2.7.18、Maven、PostgreSQL、PostGIS。
 
-## 1. 数据表字段
+## 1. 摄像头业务数据表
 
-摄像头数据表字段按现有业务表映射：
+本项目固定查询现有摄像头业务表：**`public.ga_yjyd_camera`**。
+
+- Schema：`public`
+- Table：`ga_yjyd_camera`
+- 空间字段：`geom`，类型为 PostGIS `geometry(Point, 4326)`
+- 坐标字段：`x` 为经度，`y` 为纬度
+- 已知数据情况：SRID=4326、几何类型 POINT、约 458129 条记录
+
+摄像头业务表由现有业务系统维护。本项目不会创建、重命名或迁移摄像头业务表，也不会在 `application.yml` 或环境变量中配置表名。代码中统一使用 `public.ga_yjyd_camera`。
 
 | 字段 | 含义 |
 |---|---|
@@ -14,25 +22,27 @@ Java 8+、Spring Boot 2.7.18、Maven、PostgreSQL、PostGIS。
 | `x` / `y` | 经度 / 纬度（业务返回字段） |
 | `xzqbm` / `xzqmc` | 行政区编码 / 名称 |
 | `pcsbm` / `pcsmc` | 派出所编码 / 名称 |
-| `geom` | PostGIS `geometry(Point,4326)`，空间查询字段 |
+| `geom` | PostGIS `geometry(Point, 4326)`，空间查询字段 |
 
-已知数据情况：SRID=4326、几何类型 POINT、约 458129 条记录。数据库字段继续保持 geometry，不需要迁移成 geography；查询时使用 `geom::geography` 做米制距离运算。
+数据库中的 `geom` 保持 geometry，不需要迁移成 geography；查询时通过 `geom::geography` 进行米制距离运算。
 
-## 2. 数据库配置与索引
+## 2. 数据库索引与任务表
 
-摄像头业务数据表固定使用 **`public.ga_yjyd_camera`**，表名在代码中明确指定，不通过 `application.yml`、环境变量或请求参数动态配置。部署前请确认该表已存在，且包含下表所列字段。字段名按现有业务表固定映射。
-
-针对 SQL 中的 `geom::geography` 表达式建立匹配的 GiST 索引（摄像头业务表固定为 `public.ga_yjyd_camera`）：
+针对 `public.ga_yjyd_camera.geom::geography` 查询表达式建立 GiST 索引。执行 `src/main/resources/db/schema.sql`：
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE INDEX IF NOT EXISTS idx_camera_geom_geog
-ON public.ga_yjyd_camera USING GIST ((geom::geography))
-WHERE geom IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_ga_yjyd_camera_geom_geog
+    ON public.ga_yjyd_camera USING GIST ((geom::geography))
+    WHERE geom IS NOT NULL;
+
 ANALYZE public.ga_yjyd_camera;
 ```
 
-异步任务需要额外建立任务表。请单独执行 `src/main/resources/db/camera_route_task.sql` 一次。不要为了创建任务表而执行 `schema.sql` 中的摄像头示例建表语句；摄像头表已经存在时无需重建。
+`schema.sql` 只创建 PostGIS 扩展（如尚未安装）和摄像头空间索引，不会创建摄像头业务表。执行前请确认现有表 `public.ga_yjyd_camera` 已存在，且 `geom` 字段为 `geometry(Point, 4326)`。
+
+异步任务使用独立的 `public.camera_route_task` 表。首次部署时单独执行 `src/main/resources/db/camera_route_task.sql` 创建任务表及其索引。该任务表与摄像头业务表用途不同，不要将二者混淆。
 
 ## 3. 坐标系约定
 
@@ -161,23 +171,4 @@ mvn clean package
 java -jar target/camera-route-api.jar
 ```
 
-配置数据库连接：`DB_URL`、`DB_USERNAME`、`DB_PASSWORD`、`SERVER_PORT`。默认连接 `jdbc:postgresql://127.0.0.1:5432/gis`。
-
-PowerShell 请求示例：
-
-```powershell
-$body = @{
-  routeId = "route_001"
-  type = "GCJ-02"
-  bufferDistance = 100
-  coordinates = @(
-    @{ longitude = 113.270000; latitude = 23.135000 },
-    @{ longitude = 113.280000; latitude = 23.140000 }
-  )
-} | ConvertTo-Json -Depth 5
-Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/camera/route/list" -Method Post -ContentType "application/json" -Body $body
-```
-
-## 8. 当前验证边界
-
-源码包含坐标转换、路线分段的单元测试；需要在具备 Maven 环境时运行 `mvn clean test`。当前尚未连接实际摄像头数据库验证真实执行计划和端到端性能。上线前请先执行任务表 DDL、创建 geography GiST 索引，并用真实路线执行 `EXPLAIN (ANALYZE, BUFFERS)`。
+配置数据库连接：`DB_URL`、`DB_USERNAME`、`DB_PASSWORD`、`SERVER_PORT`。默认连接 `jdbc:postgresql://127.0.0.1:5432/gis}

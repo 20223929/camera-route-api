@@ -14,8 +14,11 @@ spring:
       minimum-idle: 2
       connection-timeout: 30000
 
+# 摄像头业务表固定使用 public.ga_yjyd_camera，不在配置文件中配置表名。
+camera:
   search:
     default-buffer-meters: 100
     max-buffer-meters: 10000
+    # 路线按约 10 公里切段；超过 500 公里自动转为异步任务
     segment-length-meters: 10000
     async-threshold-meters: 500000
