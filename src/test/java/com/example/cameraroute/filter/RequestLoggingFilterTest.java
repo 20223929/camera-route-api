@@ -34,7 +34,7 @@ class RequestLoggingFilterTest {
         MockHttpServletRequest request =
                 new MockHttpServletRequest("GET", "/actuator/health");
         request.addHeader("X-Request-Id", "invalid request id");
-        request.addHeader("X-Trace-Id", "x".repeat(65));
+        request.addHeader("X-Trace-Id", new String(new char[65]).replace('\\0', 'x'));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter.doFilter(request, response, new MockFilterChain());
