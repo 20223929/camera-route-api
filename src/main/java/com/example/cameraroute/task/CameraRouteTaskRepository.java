@@ -18,7 +18,7 @@ public class CameraRouteTaskRepository {
 
     /**
      * Atomically creates a task or reuses the valid task for the same request.
-     * Failed, expired, or abandoned tasks are reset in place, keeping the task id stable.
+     * Failed, expired, or abandoned queued tasks are reset in place, keeping the task id stable.
      */
     public TaskRecord acquire(String taskId, String requestHash) {
         String insert = "INSERT INTO public.camera_route_task "
@@ -31,7 +31,7 @@ public class CameraRouteTaskRepository {
                 + "expires_at = CURRENT_TIMESTAMP + INTERVAL '24 hours' "
                 + "WHERE public.camera_route_task.status = 'FAILED' "
                 + "OR public.camera_route_task.expires_at <= CURRENT_TIMESTAMP "
-                + "OR (public.camera_route_task.status IN ('QUEUED', 'RUNNING') "
+                + "OR (public.camera_route_task.status = 'QUEUED' "
                 + "AND public.camera_route_task.updated_at < CURRENT_TIMESTAMP - INTERVAL '30 minutes') "
                 + "RETURNING task_id, status";
 
