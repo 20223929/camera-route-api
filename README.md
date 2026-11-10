@@ -20,16 +20,16 @@ Java 8+、Spring Boot 2.7.18、Maven、PostgreSQL、PostGIS。
 
 ## 2. 数据库配置与索引
 
-默认摄像头表名为 `public.camera_info`。通过 `application.yml` 的 `camera.table-name` 或环境变量 `CAMERA_TABLE` 指定实际表名，例如 `public.your_camera_table`。字段名目前按上表固定映射。
+摄像头业务数据表固定使用 **`public.ga_yjyd_camera`**，表名在代码中明确指定，不通过 `application.yml`、环境变量或请求参数动态配置。部署前请确认该表已存在，且包含下表所列字段。字段名按现有业务表固定映射。
 
-针对 SQL 中的 `geom::geography` 表达式建立匹配的 GiST 索引（表名替换为实际表名）：
+针对 SQL 中的 `geom::geography` 表达式建立匹配的 GiST 索引（摄像头业务表固定为 `public.ga_yjyd_camera`）：
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE INDEX IF NOT EXISTS idx_camera_geom_geog
-ON public.camera_info USING GIST ((geom::geography))
+ON public.ga_yjyd_camera USING GIST ((geom::geography))
 WHERE geom IS NOT NULL;
-ANALYZE public.camera_info;
+ANALYZE public.ga_yjyd_camera;
 ```
 
 异步任务需要额外建立任务表。请单独执行 `src/main/resources/db/camera_route_task.sql` 一次。不要为了创建任务表而执行 `schema.sql` 中的摄像头示例建表语句；摄像头表已经存在时无需重建。

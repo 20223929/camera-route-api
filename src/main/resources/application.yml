@@ -14,8 +14,6 @@ spring:
       minimum-idle: 2
       connection-timeout: 30000
 
-camera:
-  table-name: ${CAMERA_TABLE:public.camera_info}
   search:
     default-buffer-meters: 100
     max-buffer-meters: 10000

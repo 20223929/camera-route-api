@@ -1,40 +1,20 @@
--- 示例结构，仅在尚未存在摄像头业务表时参考；不要覆盖现有业务表。
+-- 摄像头业务数据表：public.ga_yjyd_camera
+-- 该表由业务系统维护，本项目不负责创建或修改摄像头业务表结构。
+-- 必需字段：
+-- sbbm, sbmc, sbcs, x, y, xzqbm, xzqmc, pcsbm, pcsmc, geom
+-- geom 应为 geometry(Point, 4326)，x 为经度，y 为纬度。
+--
+-- 查询使用 geom::geography 进行米制距离计算，因此创建匹配的 GiST 表达式索引。
 CREATE EXTENSION IF NOT EXISTS postgis;
 
-CREATE TABLE IF NOT EXISTS public.camera_info (
-    sbbm   VARCHAR(64),
-    sbmc   VARCHAR(200),
-    sbcs   VARCHAR(200),
-    x      DOUBLE PRECISION,
-    y      DOUBLE PRECISION,
-    xzqbm  VARCHAR(64),
-    xzqmc  VARCHAR(200),
-    pcsbm  VARCHAR(64),
-    pcsmc  VARCHAR(200),
-    geom   geometry(Point, 4326)
-);
+CREATE INDEX IF NOT EXISTS idx_ga_yjyd_camera_geom_geog
+    ON public.ga_yjyd_camera USING GIST ((geom::geography))
+    WHERE geom IS NOT NULL;
 
--- 查询条件使用 geom::geography，因此建立相同表达式的 GiST 索引。
-CREATE INDEX IF NOT EXISTS idx_camera_info_geom_geog
-ON public.camera_info USING GIST ((geom::geography))
-WHERE geom IS NOT NULL;
+ANALYZE public.ga_yjyd_camera;
 
--- 查看现有数据的 SRID、几何类型和数量：
+-- 查看摄像头数据的 SRID、几何类型和数量：
 -- SELECT ST_SRID(geom), GeometryType(geom), COUNT(*)
--- FROM public.camera_info WHERE geom IS NOT NULL
+-- FROM public.ga_yjyd_camera
+-- WHERE geom IS NOT NULL
 -- GROUP BY ST_SRID(geom), GeometryType(geom);
-
--- Long-route asynchronous task table. Execute once in the application database.
-CREATE TABLE IF NOT EXISTS public.camera_route_task (
-    task_id       varchar(64) PRIMARY KEY,
-    route_id      varchar(128),
-    status        varchar(16) NOT NULL,
-    progress      integer NOT NULL DEFAULT 0,
-    total_count   integer NOT NULL DEFAULT 0,
-    result_json   jsonb,
-    error_message varchar(1000),
-    created_at    timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at    timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_camera_route_task_created_at
-    ON public.camera_route_task (created_at DESC);
