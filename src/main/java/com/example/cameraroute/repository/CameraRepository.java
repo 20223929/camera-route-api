@@ -3,6 +3,7 @@ package com.example.cameraroute.repository;
 import com.example.cameraroute.dto.CameraPage;
 import com.example.cameraroute.dto.CameraResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 public class CameraRepository {
@@ -77,10 +79,18 @@ public class CameraRepository {
             int pageSize
     ) {
         if (routeWkts == null || routeWkts.isEmpty()) {
+            log.warn("event=route.camera.query.skipped reason=empty_route_segments");
             return new CameraPage(0, Collections.<CameraResponse>emptyList());
         }
 
+        long startedAt = System.nanoTime();
         long offset = ((long) pageNum - 1L) * (long) pageSize;
+        log.info(
+                "event=route.camera.database_query.started segmentCount={} bufferMeters={} "
+                        + "pageNum={} pageSize={} queryTimeoutSeconds={}",
+                routeWkts.size(), bufferMeters, pageNum, pageSize, queryTimeoutSeconds
+        );
+
         ResultSetExtractor<CameraPage> pageExtractor = this::extractPage;
         CameraPage page = jdbcTemplate.query(
                 connection -> createStatement(
@@ -89,20 +99,28 @@ public class CameraRepository {
                 pageExtractor
         );
 
-        if (!page.getData().isEmpty()) {
-            return page;
+        boolean countFallback = false;
+        if (page.getData().isEmpty()) {
+            // An out-of-range page has no row carrying COUNT(*) OVER(); query the total separately.
+            countFallback = true;
+            ResultSetExtractor<Long> countExtractor =
+                    resultSet -> resultSet.next() ? resultSet.getLong(1) : 0L;
+            Long count = jdbcTemplate.query(
+                    connection -> createStatement(
+                            connection, COUNT_SQL, routeWkts, bufferMeters, null, null
+                    ),
+                    countExtractor
+            );
+            page = new CameraPage(count == null ? 0L : count, page.getData());
         }
 
-        // An out-of-range page has no row carrying COUNT(*) OVER(); query the total separately.
-        ResultSetExtractor<Long> countExtractor =
-                resultSet -> resultSet.next() ? resultSet.getLong(1) : 0L;
-        Long count = jdbcTemplate.query(
-                connection -> createStatement(
-                        connection, COUNT_SQL, routeWkts, bufferMeters, null, null
-                ),
-                countExtractor
+        log.info(
+                "event=route.camera.database_query.completed resultCount={} total={} "
+                        + "countFallback={} durationMs={}",
+                page.getData().size(), page.getTotal(), countFallback,
+                (System.nanoTime() - startedAt) / 1_000_000L
         );
-        return new CameraPage(count == null ? 0L : count, page.getData());
+        return page;
     }
 
     private CameraPage extractPage(ResultSet resultSet) throws SQLException {

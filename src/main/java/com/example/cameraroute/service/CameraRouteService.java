@@ -7,12 +7,14 @@ import com.example.cameraroute.geo.RouteSegmenter;
 import com.example.cameraroute.repository.CameraRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CameraRouteService {
@@ -36,14 +38,39 @@ public class CameraRouteService {
             int pageNum,
             int pageSize
     ) {
+        long startedAt = System.nanoTime();
+        int coordinateCount = request == null || request.getCoordinates() == null
+                ? 0 : request.getCoordinates().size();
+        String coordinateType = request == null ? null : request.getType();
+
+        log.info(
+                "event=route.camera.query.started coordinateType={} coordinateCount={} pageNum={} pageSize={}",
+                coordinateType, coordinateCount, pageNum, pageSize
+        );
+
         validatePage(pageNum, pageSize);
         PreparedRoute prepared = prepare(request);
-        return repository.findCamerasNearRoute(
+
+        log.info(
+                "event=route.camera.query.prepared coordinateType={} coordinateCount={} "
+                        + "routeLengthMeters={} segmentCount={} bufferMeters={} pageNum={} pageSize={}",
+                coordinateType, coordinateCount, prepared.getRouteLengthMeters(),
+                prepared.getSegmentWkts().size(), prepared.getBufferMeters(), pageNum, pageSize
+        );
+
+        CameraPage page = repository.findCamerasNearRoute(
                 prepared.getSegmentWkts(),
                 prepared.getBufferMeters(),
                 pageNum,
                 pageSize
         );
+
+        log.info(
+                "event=route.camera.query.completed resultCount={} total={} pageNum={} pageSize={} durationMs={}",
+                page.getData().size(), page.getTotal(), pageNum, pageSize,
+                (System.nanoTime() - startedAt) / 1_000_000L
+        );
+        return page;
     }
 
     private PreparedRoute prepare(RouteCameraRequest request) {
@@ -91,7 +118,7 @@ public class CameraRouteService {
             );
         }
 
-        return new PreparedRoute(segments, buffer);
+        return new PreparedRoute(segments, buffer, length);
     }
 
     private void validatePage(int pageNum, int pageSize) {
@@ -129,5 +156,6 @@ public class CameraRouteService {
     private static class PreparedRoute {
         List<String> segmentWkts;
         int bufferMeters;
+        double routeLengthMeters;
     }
 }
