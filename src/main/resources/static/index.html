@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#101827">
+    <title>沿途摄像头检索</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #0b1220;
+            --panel: #111c2e;
+            --panel-soft: #17243a;
+            --line: #26364e;
+            --text: #e8eef8;
+            --muted: #91a2ba;
+            --blue: #4e9cff;
+            --cyan: #42d3cf;
+            --red: #ff657a;
+            --green: #3bd6a3;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: radial-gradient(circle at 15% 0%, #14253e 0, var(--bg) 42%);
+            color: var(--text);
+            font: 14px/1.5 Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+        }
+        button, input, select, textarea { font: inherit; }
+        .topbar {
+            height: 66px; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 28px; border-bottom: 1px solid rgba(145,162,186,.16);
+            background: rgba(11,18,32,.8); backdrop-filter: blur(16px);
+        }
+        .brand { display:flex; align-items:center; gap:12px; font-size:16px; font-weight:700; letter-spacing:.3px; }
+        .brand-mark {
+            width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+            color:#071522;background:linear-gradient(135deg,#54d7d0,#4e9cff);
+            box-shadow:0 5px 22px rgba(78,156,255,.22);font-size:18px;
+        }
+        .top-note { color:var(--muted); font-size:12px; }
+        .layout { display:grid; grid-template-columns:350px minmax(0,1fr); gap:18px; padding:18px; max-width:1800px; margin:auto; }
+        .panel { background:linear-gradient(180deg,rgba(20,32,51,.97),rgba(15,25,41,.97)); border:1px solid var(--line); border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.16); }
+        .sidebar { padding:20px; align-self:start; }
+        h1 { font-size:19px; margin:0 0 5px; }
+        .sub { color:var(--muted); font-size:12px; margin-bottom:22px; }
+        .field { margin:16px 0; }
+        .field-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+        label { display:block; color:#cbd6e6; font-size:12px; font-weight:600; }
+        .hint { color:#71839d; font-size:11px; font-weight:400; }
+        textarea, input, select {
+            width:100%; color:var(--text); background:#0b1525; border:1px solid #2a3b55;
+            border-radius:9px; outline:none; padding:10px 11px; transition:border .2s,box-shadow .2s;
+        }
+        textarea:focus, input:focus, select:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(78,156,255,.12); }
+        textarea { min-height:152px; resize:vertical; line-height:1.8; font-family:Consolas,monospace; font-size:12px; }
+        .row-fields { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .actions { display:flex; gap:9px; margin-top:19px; }
+        button { border:0; border-radius:9px; cursor:pointer; transition:filter .15s,transform .15s; }
+        button:hover { filter:brightness(1.1); }
+        button:active { transform:translateY(1px); }
+        .primary { flex:1; padding:11px 14px; color:#071522; font-weight:700; background:linear-gradient(100deg,#54d7d0,#62aaff); }
+        .secondary { padding:10px 13px; color:#c8d6e9; background:#24344d; border:1px solid #354966; }
+        .status { margin-top:14px; padding:10px 11px; border-radius:9px; color:var(--muted); background:#0b1525; border:1px solid #24354d; font-size:12px; min-height:39px; }
+        .status.error { color:#ff9aaa; border-color:rgba(255,101,122,.35); }
+        .status.ok { color:#70e2bb; border-color:rgba(59,214,163,.28); }
+        .main { min-width:0; display:grid; grid-template-rows:minmax(420px,56vh) auto; gap:18px; }
+        .map-panel { overflow:hidden; position:relative; }
+        #map { height:100%; min-height:420px; background:#15243a; }
+        .map-tools { position:absolute; z-index:500; top:14px; left:14px; display:flex; gap:8px; pointer-events:none; }
+        .map-chip { pointer-events:auto; padding:7px 10px; border:1px solid rgba(255,255,255,.12); border-radius:8px; background:rgba(12,22,37,.9); color:#dce8f8; font-size:11px; box-shadow:0 4px 14px #0003; }
+        .legend { position:absolute; z-index:500; right:14px; bottom:14px; padding:10px 12px; background:rgba(12,22,37,.92); border:1px solid #ffffff20; border-radius:10px; color:#dce8f8; font-size:11px; display:grid; gap:7px; }
+        .legend span { display:flex; align-items:center; gap:7px; }
+        .dot { width:9px;height:9px;border-radius:50%;display:inline-block; }
+        .dot.route { background:#42d3cf; box-shadow:0 0 0 3px #42d3cf33; }
+        .dot.camera { background:#ff657a; box-shadow:0 0 0 3px #ff657a33; }
+        .results { padding:18px 20px 12px; min-width:0; }
+        .results-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
+        .results-title { font-size:15px; font-weight:700; }
+        .stats { display:flex; gap:8px; flex-wrap:wrap; }
+        .stat { padding:6px 10px; border:1px solid #2a3b55; border-radius:8px; color:var(--muted); font-size:11px; background:#0c1728; }
+        .stat strong { color:#eaf2ff; font-size:13px; margin-left:4px; }
+        .table-wrap { overflow:auto; max-height:350px; border:1px solid #26364e; border-radius:10px; }
+        table { border-collapse:collapse; width:100%; min-width:850px; text-align:left; font-size:12px; }
+        thead { position:sticky; top:0; z-index:1; background:#1a2a42; color:#aebed3; }
+        th,td { padding:11px 12px; border-bottom:1px solid #22334b; white-space:nowrap; }
+        tbody tr { cursor:pointer; transition:background .15s; }
+        tbody tr:hover, tbody tr.active { background:rgba(78,156,255,.12); }
+        tbody tr:last-child td { border-bottom:0; }
+        .distance { color:#65d8ce; font-variant-numeric:tabular-nums; }
+        .code { color:#9bb0ca; font-family:Consolas,monospace; }
+        .empty { padding:35px 15px; text-align:center; color:#7f91aa; }
+        .pagination { display:flex; justify-content:space-between; align-items:center; gap:10px; padding-top:12px; color:var(--muted); font-size:11px; }
+        .page-actions { display:flex; gap:7px; }
+        .page-actions button { padding:6px 11px; background:#22334b; color:#dce8f8; border:1px solid #344966; }
+        .page-actions button:disabled { opacity:.35; cursor:not-allowed; }
+        .leaflet-popup-content-wrapper,.leaflet-popup-tip { background:#132238;color:#e8eef8; }
+        .leaflet-popup-content { font-size:12px; line-height:1.7; }
+        .leaflet-container a { color:#78b6ff; }
+        @media (max-width:1050px) {
+            .layout { grid-template-columns:300px minmax(0,1fr); padding:12px; gap:12px; }
+            .main { grid-template-rows:480px auto; }
+        }
+        @media (max-width:760px) {
+            .topbar { padding:0 16px; }
+            .top-note { display:none; }
+            .layout { display:flex; flex-direction:column; }
+            .sidebar { width:100%; }
+            .main { grid-template-rows:420px auto; }
+            #map { min-height:420px; }
+            .results-head { align-items:flex-start; flex-direction:column; }
+        }
+    </style>
+</head>
+<body>
+<header class="topbar">
+    <div class="brand"><div class="brand-mark">⌖</div><span>沿途摄像头检索</span></div>
+    <div class="top-note">ROUTE CAMERA SEARCH · 同步查询</div>
+</header>
+
+<div class="layout">
+    <aside class="panel sidebar">
+        <h1>路线查询</h1>
+        <div class="sub">输入路线坐标，检索路线周边摄像头设备</div>
+
+        <div class="field">
+            <div class="field-head">
+                <label for="coordinates">路线坐标</label>
+                <span class="hint">每行一个点：经度,纬度</span>
+            </div>
+            <textarea id="coordinates" spellcheck="false">113.264385,23.129112
+113.270000,23.132000
+113.278000,23.136000
+113.286000,23.140000</textarea>
+            <div class="hint" style="margin-top:6px">支持多个途经点；也可以直接在地图上点击添加路线点。</div>
+        </div>
+
+        <div class="row-fields">
+            <div class="field">
+                <label for="coordType">坐标系</label>
+                <select id="coordType">
+                    <option value="WGS84">WGS84</option>
+                    <option value="GCJ-02">GCJ-02</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="buffer">搜索半径（米）</label>
+                <input id="buffer" type="number" min="0" max="10000" value="100">
+            </div>
+        </div>
+        <div class="row-fields">
+            <div class="field">
+                <label for="pageSize">每页数量</label>
+                <select id="pageSize">
+                    <option value="20">20 条</option>
+                    <option value="50" selected>50 条</option>
+                    <option value="100">100 条</option>
+                    <option value="500">500 条</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="apiPath">接口地址</label>
+                <input id="apiPath" type="text" value="/api/camera/route/list">
+            </div>
+        </div>
+        <div class="actions">
+            <button class="primary" id="searchBtn" type="button">⌕　查询沿途摄像头</button>
+            <button class="secondary" id="resetBtn" type="button">重置</button>
+        </div>
+        <div class="status" id="status">准备就绪。可直接使用示例路线，或输入自己的路线坐标。</div>
+        <div class="hint" style="margin-top:12px">提示：地图底图使用 OpenStreetMap；查询结果来自当前项目后端接口。</div>
+    </aside>
+
+    <main class="main">
+        <section class="panel map-panel">
+            <div id="map"></div>
+            <div class="map-tools">
+                <div class="map-chip">路线与摄像头分布</div>
+                <button class="map-chip" id="clearPoints" type="button">清空路线点</button>
+            </div>
+            <div class="legend">
+                <span><i class="dot route"></i> 查询路线</span>
+                <span><i class="dot camera"></i> 摄像头设备</span>
+            </div>
+        </section>
+
+        <section class="panel results">
+            <div class="results-head">
+                <div class="results-title">沿途摄像头列表</div>
+                <div class="stats">
+                    <div class="stat">摄像头总数<strong id="totalCount">—</strong></div>
+                    <div class="stat">当前页<strong id="currentCount">0</strong></div>
+                    <div class="stat">路线点<strong id="routeCount">4</strong></div>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>序号</th><th>设备名称</th><th>设备编码</th><th>设备厂商</th>
+                        <th>距路线</th><th>行政区</th><th>所属派出所</th><th>经度</th><th>纬度</th>
+                    </tr>
+                    </thead>
+                    <tbody id="cameraRows">
+                    <tr><td colspan="9" class="empty">查询后将在这里显示沿途摄像头</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <span id="pageInfo">尚未查询</span>
+                <div class="page-actions">
+                    <button id="prevPage" type="button" disabled>上一页</button>
+                    <button id="nextPage" type="button" disabled>下一页</button>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+    (function () {
+        "use strict";
+
+        const DEFAULT_COORDINATES = [
+            [113.264385, 23.129112],
+            [113.270000, 23.132000],
+            [113.278000, 23.136000],
+            [113.286000, 23.140000]
+        ];
+        const map = L.map("map", { zoomControl: true }).setView([23.132, 113.274], 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        const routeLayer = L.layerGroup().addTo(map);
+        const cameraLayer = L.layerGroup().addTo(map);
+        let routePoints = DEFAULT_COORDINATES.map(point => point.slice());
+        let currentPage = 1;
+        let total = 0;
+        let pageSize = 50;
+        let cameraMarkers = new Map();
+        let selectedCamera = null;
+
+        const $ = id => document.getElementById(id);
+        const status = $("status");
+
+        function setStatus(message, type) {
+            status.textContent = message;
+            status.className = "status" + (type ? " " + type : "");
+        }
+
+        function parseCoordinates() {
+            const lines = $("coordinates").value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+            if (lines.length < 2) throw new Error("路线至少需要两个坐标点");
+            return lines.map((line, index) => {
+                const values = line.split(/[,，\s]+/).filter(Boolean);
+                if (values.length !== 2) throw new Error("第 " + (index + 1) + " 行格式错误，应为：经度,纬度");
+                const longitude = Number(values[0]);
+                const latitude = Number(values[1]);
+                if (!Number.isFinite(longitude) || !Number.isFinite(latitude)
+                    || longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+                    throw new Error("第 " + (index + 1) + " 行经纬度无效");
+                }
+                return [longitude, latitude];
+            });
+        }
+
+        function updateRoute() {
+            routeLayer.clearLayers();
+            cameraLayer.clearLayers();
+            cameraMarkers.clear();
+            selectedCamera = null;
+            const latLngs = routePoints.map(point => [point[1], point[0]]);
+            if (latLngs.length) {
+                L.polyline(latLngs, { color: "#42d3cf", weight: 5, opacity: .95 }).addTo(routeLayer);
+                L.circleMarker(latLngs[0], { radius: 7, color: "#0b1728", weight: 2, fillColor: "#42d3cf", fillOpacity: 1 })
+                    .bindTooltip("起点").addTo(routeLayer);
+                L.circleMarker(latLngs[latLngs.length - 1], { radius: 7, color: "#0b1728", weight: 2, fillColor: "#4e9cff", fillOpacity: 1 })
+                    .bindTooltip("终点").addTo(routeLayer);
+                if (latLngs.length > 1) map.fitBounds(L.latLngBounds(latLngs).pad(.18));
+                else map.setView(latLngs[0], 14);
+            }
+            $("routeCount").textContent = String(routePoints.length);
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? "" : value).replace(/[&<>"']/g, char => ({
+                "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+            })[char]);
+        }
+
+        function formatNumber(value, digits) {
+            const number = Number(value);
+            return Number.isFinite(number) ? number.toFixed(digits) : "—";
+        }
+
+        function renderCameras(cameras) {
+            const tbody = $("cameraRows");
+            cameraLayer.clearLayers();
+            cameraMarkers.clear();
+            selectedCamera = null;
+
+            if (!cameras.length) {
+                tbody.innerHTML = '<tr><td colspan="9" class="empty">当前页没有摄像头数据</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = cameras.map((camera, index) => {
+                const rowNumber = (currentPage - 1) * pageSize + index + 1;
+                return '<tr data-code="' + escapeHtml(camera.sbbm) + '">' +
+                    '<td>' + rowNumber + '</td>' +
+                    '<td>' + escapeHtml(camera.sbmc || "未命名设备") + '</td>' +
+                    '<td class="code">' + escapeHtml(camera.sbbm) + '</td>' +
+                    '<td>' + escapeHtml(camera.sbcs) + '</td>' +
+                    '<td class="distance">' + formatNumber(camera.distance, 2) + ' m</td>' +
+                    '<td>' + escapeHtml(camera.xzqmc) + '</td>' +
+                    '<td>' + escapeHtml(camera.pcsmc) + '</td>' +
+                    '<td class="code">' + formatNumber(camera.x, 6) + '</td>' +
+                    '<td class="code">' + formatNumber(camera.y, 6) + '</td>' +
+                    '</tr>';
+            }).join("");
+
+            cameras.forEach(camera => {
+                const longitude = Number(camera.x);
+                const latitude = Number(camera.y);
+                if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
+                const marker = L.circleMarker([latitude, longitude], {
+                    radius: 5, color: "#fff", weight: 1, fillColor: "#ff657a", fillOpacity: .95
+                }).bindPopup(
+                    "<strong>" + escapeHtml(camera.sbmc || "未命名设备") + "</strong><br>" +
+                    "设备编码：" + escapeHtml(camera.sbbm) + "<br>" +
+                    "距路线：" + formatNumber(camera.distance, 2) + " 米<br>" +
+                    "厂商：" + escapeHtml(camera.sbcs || "—")
+                ).addTo(cameraLayer);
+                cameraMarkers.set(String(camera.sbbm), marker);
+            });
+
+            tbody.querySelectorAll("tr[data-code]").forEach(row => {
+                row.addEventListener("click", () => selectCamera(row.dataset.code, row));
+            });
+        }
+
+        function selectCamera(code, row) {
+            if (selectedCamera) selectedCamera.classList.remove("active");
+            selectedCamera = row;
+            row.classList.add("active");
+            const marker = cameraMarkers.get(String(code));
+            if (marker) {
+                map.setView(marker.getLatLng(), Math.max(map.getZoom(), 15));
+                marker.openPopup();
+            }
+        }
+
+        async function search(page) {
+            let coordinates;
+            try {
+                coordinates = parseCoordinates();
+                const bufferDistance = Number($("buffer").value);
+                if (!Number.isInteger(bufferDistance) || bufferDistance < 0 || bufferDistance > 10000) {
+                    throw new Error("搜索半径必须是 0 至 10000 之间的整数");
+                }
+                const endpoint = $("apiPath").value.trim();
+                if (!endpoint) throw new Error("请填写接口地址");
+                routePoints = coordinates;
+                pageSize = Number($("pageSize").value);
+                currentPage = page;
+                updateRoute();
+                $("searchBtn").disabled = true;
+                $("searchBtn").textContent = "正在查询…";
+                setStatus("正在同步查询路线周边摄像头，请稍候…");
+                const query = new URLSearchParams({ pageNum: String(page), pageSize: String(pageSize) });
+                const response = await fetch(endpoint + "?" + query.toString(), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        type: $("coordType").value,
+                        bufferDistance: bufferDistance,
+                        coordinates: coordinates.map(point => ({ longitude: point[0], latitude: point[1] }))
+                    })
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || result.error || ("HTTP " + response.status));
+                if (result.code !== 200) throw new Error(result.message || "接口返回失败");
+                const cameras = Array.isArray(result.data) ? result.data : [];
+                total = Number(result.total) || 0;
+                renderCameras(cameras);
+                $("totalCount").textContent = total.toLocaleString("zh-CN");
+                $("currentCount").textContent = cameras.length.toLocaleString("zh-CN");
+                const totalPages = Math.max(1, Math.ceil(total / pageSize));
+                $("pageInfo").textContent = "第 " + currentPage + " / " + totalPages + " 页 · 共 " + total.toLocaleString("zh-CN") + " 条";
+                $("prevPage").disabled = currentPage <= 1;
+                $("nextPage").disabled = currentPage >= totalPages;
+                setStatus("查询完成：本页返回 " + cameras.length + " 条，路线周边共 " + total.toLocaleString("zh-CN") + " 个摄像头。", "ok");
+            } catch (error) {
+                setStatus(error.message || "查询失败，请检查接口服务和网络。", "error");
+            } finally {
+                $("searchBtn").disabled = false;
+                $("searchBtn").textContent = "⌕　查询沿途摄像头";
+            }
+        }
+
+        $("searchBtn").addEventListener("click", () => search(1));
+        $("prevPage").addEventListener("click", () => { if (currentPage > 1) search(currentPage - 1); });
+        $("nextPage").addEventListener("click", () => {
+            if (currentPage * pageSize < total) search(currentPage + 1);
+        });
+        $("resetBtn").addEventListener("click", () => {
+            routePoints = DEFAULT_COORDINATES.map(point => point.slice());
+            $("coordinates").value = routePoints.map(point => point.join(",")).join("\n");
+            $("buffer").value = "100";
+            $("coordType").value = "WGS84";
+            $("totalCount").textContent = "—";
+            $("currentCount").textContent = "0";
+            $("pageInfo").textContent = "尚未查询";
+            $("cameraRows").innerHTML = '<tr><td colspan="9" class="empty">查询后将在这里显示沿途摄像头</td></tr>';
+            total = 0;
+            $("prevPage").disabled = true;
+            $("nextPage").disabled = true;
+            updateRoute();
+            setStatus("已恢复示例路线。");
+        });
+        $("clearPoints").addEventListener("click", () => {
+            routePoints = [];
+            $("coordinates").value = "";
+            updateRoute();
+            setStatus("路线点已清空。点击地图添加起点和途经点。");
+        });
+
+        map.on("click", event => {
+            const point = [Number(event.latlng.lng.toFixed(6)), Number(event.latlng.lat.toFixed(6))];
+            routePoints.push(point);
+            $("coordinates").value = routePoints.map(item => item.join(",")).join("\n");
+            updateRoute();
+            setStatus("已添加路线点 " + routePoints.length + "，点击“查询沿途摄像头”执行检索。");
+        });
+
+        $("coordinates").value = routePoints.map(point => point.join(",")).join("\n");
+        updateRoute();
+    })();
+</script>
+</body>
+</html>
