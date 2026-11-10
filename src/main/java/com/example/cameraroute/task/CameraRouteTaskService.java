@@ -5,6 +5,8 @@ import com.example.cameraroute.dto.RouteCameraRequest;
 import com.example.cameraroute.service.CameraRouteService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -14,21 +16,12 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class CameraRouteTaskService {
 
     private final CameraRouteTaskRepository taskRepository;
     private final CameraRouteService routeService;
     private final ObjectMapper objectMapper;
-
-    public CameraRouteTaskService(
-            CameraRouteTaskRepository taskRepository,
-            CameraRouteService routeService,
-            ObjectMapper objectMapper
-    ) {
-        this.taskRepository = taskRepository;
-        this.routeService = routeService;
-        this.objectMapper = objectMapper;
-    }
 
     public String submit(RouteCameraRequest request) {
         String taskId = UUID.randomUUID().toString().replace("-", "");
@@ -108,6 +101,7 @@ public class CameraRouteTaskService {
         }
     }
 
+    @Getter
     public static final class PageResult {
 
         private final int total;
@@ -116,14 +110,6 @@ public class CameraRouteTaskService {
         public PageResult(int total, List<CameraResponse> data) {
             this.total = total;
             this.data = data;
-        }
-
-        public int getTotal() {
-            return total;
-        }
-
-        public List<CameraResponse> getData() {
-            return data;
         }
     }
 }

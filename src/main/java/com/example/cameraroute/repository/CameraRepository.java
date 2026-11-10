@@ -1,6 +1,7 @@
 package com.example.cameraroute.repository;
 
 import com.example.cameraroute.dto.CameraResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -9,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Repository
+@RequiredArgsConstructor
 public class CameraRepository {
 
     /**
@@ -17,10 +19,6 @@ public class CameraRepository {
     private static final String CAMERA_TABLE = "public.ga_yjyd_camera";
 
     private final JdbcTemplate jdbcTemplate;
-
-    public CameraRepository(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
 
     public List<CameraResponse> findCamerasNearRoute(
             List<String> routeWkts,

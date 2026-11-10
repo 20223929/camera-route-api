@@ -5,6 +5,7 @@ import com.example.cameraroute.dto.RouteCameraRequest;
 import com.example.cameraroute.geo.CoordinateConverter;
 import com.example.cameraroute.geo.RouteSegmenter;
 import com.example.cameraroute.repository.CameraRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 
 @Service
+@RequiredArgsConstructor
 public class CameraRouteService {
 
     private final CameraRepository repository;
@@ -25,10 +27,6 @@ public class CameraRouteService {
 
     @Value("${camera.search.segment-length-meters:10000}")
     private double segmentLengthMeters;
-
-    public CameraRouteService(CameraRepository repository) {
-        this.repository = repository;
-    }
 
     public List<CameraResponse> findCameras(RouteCameraRequest request) {
         PreparedRoute prepared = prepare(request);

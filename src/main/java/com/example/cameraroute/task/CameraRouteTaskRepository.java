@@ -1,18 +1,16 @@
 package com.example.cameraroute.task;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.Map;
 
 @Repository
+@RequiredArgsConstructor
 public class CameraRouteTaskRepository {
 
     private final JdbcTemplate jdbc;
-
-    public CameraRouteTaskRepository(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
-    }
 
     public void create(String taskId, String routeId) {
         String sql = "INSERT INTO public.camera_route_task "

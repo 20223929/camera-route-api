@@ -5,6 +5,7 @@ import com.example.cameraroute.dto.CameraResponse;
 import com.example.cameraroute.dto.RouteCameraRequest;
 import com.example.cameraroute.service.CameraRouteService;
 import com.example.cameraroute.task.CameraRouteTaskService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +24,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/camera")
 @Validated
+@RequiredArgsConstructor
 public class CameraRouteController {
 
     private final CameraRouteService service;
@@ -30,14 +32,6 @@ public class CameraRouteController {
 
     @Value("${camera.search.async-threshold-meters:500000}")
     private double asyncThresholdMeters;
-
-    public CameraRouteController(
-            CameraRouteService service,
-            CameraRouteTaskService taskService
-    ) {
-        this.service = service;
-        this.taskService = taskService;
-    }
 
     /**
      * Short routes return data directly. Longer routes are processed asynchronously.
