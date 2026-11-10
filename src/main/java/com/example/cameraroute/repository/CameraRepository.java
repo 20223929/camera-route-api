@@ -12,7 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -56,7 +58,8 @@ public class CameraRepository {
             ROUTE_CTE
                     + "SELECT sbbm, sbmc, sbcs, x, y, xzqbm, xzqmc, "
                     + "pcsbm, pcsmc, "
-                    + "ROUND(distance_m::numeric, 2) AS distance "
+                    + "ROUND(distance_m::numeric, 2) AS distance, "
+                    + "COUNT(*) OVER() AS total_count "
                     + "FROM deduplicated "
                     + "ORDER BY distance_m ASC, sbbm ASC LIMIT ? OFFSET ?";
 
@@ -76,35 +79,51 @@ public class CameraRepository {
             return new CameraPage(0, Collections.<CameraResponse>emptyList());
         }
 
+        long offset = ((long) pageNum - 1L) * (long) pageSize;
+        CameraPage page = jdbcTemplate.query(
+                connection -> createStatement(
+                        connection, PAGE_SQL, routeWkts, bufferMeters, pageSize, offset
+                ),
+                resultSet -> extractPage(resultSet)
+        );
+
+        if (!page.getData().isEmpty()) {
+            return page;
+        }
+
+        // An out-of-range page has no row carrying COUNT(*) OVER(); query the total separately.
         Long count = jdbcTemplate.query(
                 connection -> createStatement(
                         connection, COUNT_SQL, routeWkts, bufferMeters, null, null
                 ),
                 resultSet -> resultSet.next() ? resultSet.getLong(1) : 0L
         );
+        return new CameraPage(count == null ? 0L : count, page.getData());
+    }
 
-        long offset = ((long) pageNum - 1L) * (long) pageSize;
-        List<CameraResponse> data = jdbcTemplate.query(
-                connection -> createStatement(
-                        connection, PAGE_SQL, routeWkts, bufferMeters, pageSize, offset
-                ),
-                (resultSet, rowNum) -> new CameraResponse(
-                        resultSet.getString("sbbm"),
-                        resultSet.getString("sbmc"),
-                        resultSet.getString("sbcs"),
-                        resultSet.getObject("x") == null
-                                ? null : resultSet.getDouble("x"),
-                        resultSet.getObject("y") == null
-                                ? null : resultSet.getDouble("y"),
-                        resultSet.getString("xzqbm"),
-                        resultSet.getString("xzqmc"),
-                        resultSet.getString("pcsbm"),
-                        resultSet.getString("pcsmc"),
-                        resultSet.getDouble("distance")
-                )
-        );
+    private CameraPage extractPage(ResultSet resultSet) throws SQLException {
+        List<CameraResponse> data = new ArrayList<CameraResponse>();
+        long total = 0L;
 
-        return new CameraPage(count == null ? 0L : count, data);
+        while (resultSet.next()) {
+            total = resultSet.getLong("total_count");
+            data.add(new CameraResponse(
+                    resultSet.getString("sbbm"),
+                    resultSet.getString("sbmc"),
+                    resultSet.getString("sbcs"),
+                    resultSet.getObject("x") == null
+                            ? null : resultSet.getDouble("x"),
+                    resultSet.getObject("y") == null
+                            ? null : resultSet.getDouble("y"),
+                    resultSet.getString("xzqbm"),
+                    resultSet.getString("xzqmc"),
+                    resultSet.getString("pcsbm"),
+                    resultSet.getString("pcsmc"),
+                    resultSet.getDouble("distance")
+            ));
+        }
+
+        return new CameraPage(total, data);
     }
 
     private PreparedStatement createStatement(
