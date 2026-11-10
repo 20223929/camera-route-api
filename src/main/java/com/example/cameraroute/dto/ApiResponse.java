@@ -1,6 +1,7 @@
 package com.example.cameraroute.dto;
 
 public class ApiResponse<T> {
+
     private int code;
     private String message;
     private long total;
@@ -17,8 +18,19 @@ public class ApiResponse<T> {
         return new ApiResponse<T>(200, "success", total, data);
     }
 
-    public int getCode() { return code; }
-    public String getMessage() { return message; }
-    public long getTotal() { return total; }
-    public T getData() { return data; }
+    public int getCode() {
+        return code;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public long getTotal() {
+        return total;
+    }
+
+    public T getData() {
+        return data;
+    }
 }

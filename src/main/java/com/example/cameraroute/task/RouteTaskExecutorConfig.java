@@ -10,15 +10,18 @@ import java.util.concurrent.Executor;
 @Configuration
 @EnableAsync
 public class RouteTaskExecutorConfig {
+
     @Bean("routeTaskExecutor")
     public Executor routeTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+
         executor.setCorePoolSize(2);
         executor.setMaxPoolSize(4);
         executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("camera-route-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
+
         return executor;
     }
 }

@@ -15,13 +15,16 @@ import java.util.UUID;
 
 @Service
 public class CameraRouteTaskService {
+
     private final CameraRouteTaskRepository taskRepository;
     private final CameraRouteService routeService;
     private final ObjectMapper objectMapper;
 
-    public CameraRouteTaskService(CameraRouteTaskRepository taskRepository,
-                                  CameraRouteService routeService,
-                                  ObjectMapper objectMapper) {
+    public CameraRouteTaskService(
+            CameraRouteTaskRepository taskRepository,
+            CameraRouteService routeService,
+            ObjectMapper objectMapper
+    ) {
         this.taskRepository = taskRepository;
         this.routeService = routeService;
         this.objectMapper = objectMapper;
@@ -35,18 +38,28 @@ public class CameraRouteTaskService {
 
     @Async("routeTaskExecutor")
     public void execute(String taskId, RouteCameraRequest request) {
-        // Called by the controller through the Spring bean proxy so @Async takes effect.
+        // Invoked through the Spring bean proxy so that @Async takes effect.
         runTask(taskId, request);
     }
 
     public void runTask(String taskId, RouteCameraRequest request) {
         try {
             taskRepository.markRunning(taskId);
+
             List<CameraResponse> cameras = routeService.findCameras(request);
-            taskRepository.complete(taskId, objectMapper.writeValueAsString(cameras), cameras.size());
+            String resultJson = objectMapper.writeValueAsString(cameras);
+
+            taskRepository.complete(taskId, resultJson, cameras.size());
         } catch (Exception ex) {
-            String message = ex.getMessage() == null ? "路线查询任务执行失败" : ex.getMessage();
-            taskRepository.fail(taskId, message.length() > 1000 ? message.substring(0, 1000) : message);
+            String message = ex.getMessage() == null
+                    ? "路线查询任务执行失败"
+                    : ex.getMessage();
+
+            if (message.length() > 1000) {
+                message = message.substring(0, 1000);
+            }
+
+            taskRepository.fail(taskId, message);
         }
     }
 
@@ -58,19 +71,37 @@ public class CameraRouteTaskService {
     }
 
     public PageResult getResult(String taskId, int pageNum, int pageSize) {
-        if (pageNum < 1) throw new IllegalArgumentException("pageNum 必须大于等于 1");
-        if (pageSize < 1 || pageSize > 1000) throw new IllegalArgumentException("pageSize 必须在 1 至 1000 之间");
-        Map<String, Object> status = taskRepository.find(taskId);
-        if (!"COMPLETED".equals(String.valueOf(status.get("status")))) {
-            throw new IllegalArgumentException("任务尚未完成，当前状态：" + status.get("status"));
+        if (pageNum < 1) {
+            throw new IllegalArgumentException("pageNum 必须大于等于 1");
         }
+
+        if (pageSize < 1 || pageSize > 1000) {
+            throw new IllegalArgumentException("pageSize 必须在 1 至 1000 之间");
+        }
+
+        Map<String, Object> status = taskRepository.find(taskId);
+
+        if (!"COMPLETED".equals(String.valueOf(status.get("status")))) {
+            throw new IllegalArgumentException(
+                    "任务尚未完成，当前状态：" + status.get("status")
+            );
+        }
+
         String json = taskRepository.findResultJson(taskId);
+
         try {
-            List<CameraResponse> all = json == null ? Collections.<CameraResponse>emptyList()
-                    : objectMapper.readValue(json, new TypeReference<List<CameraResponse>>() { });
+            List<CameraResponse> all = json == null
+                    ? Collections.<CameraResponse>emptyList()
+                    : objectMapper.readValue(
+                            json,
+                            new TypeReference<List<CameraResponse>>() {
+                            }
+                    );
+
             long offset = ((long) pageNum - 1L) * (long) pageSize;
             int from = (int) Math.min(offset, (long) all.size());
             int to = Math.min(from + pageSize, all.size());
+
             return new PageResult(all.size(), all.subList(from, to));
         } catch (Exception ex) {
             throw new IllegalStateException("读取任务结果失败", ex);
@@ -78,10 +109,21 @@ public class CameraRouteTaskService {
     }
 
     public static final class PageResult {
+
         private final int total;
         private final List<CameraResponse> data;
-        public PageResult(int total, List<CameraResponse> data) { this.total = total; this.data = data; }
-        public int getTotal() { return total; }
-        public List<CameraResponse> getData() { return data; }
+
+        public PageResult(int total, List<CameraResponse> data) {
+            this.total = total;
+            this.data = data;
+        }
+
+        public int getTotal() {
+            return total;
+        }
+
+        public List<CameraResponse> getData() {
+            return data;
+        }
     }
 }
