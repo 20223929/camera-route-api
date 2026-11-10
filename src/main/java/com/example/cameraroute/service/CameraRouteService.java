@@ -6,7 +6,7 @@ import com.example.cameraroute.geo.CoordinateConverter;
 import com.example.cameraroute.geo.RouteSegmenter;
 import com.example.cameraroute.repository.CameraRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -19,13 +19,13 @@ public class CameraRouteService {
 
     private final CameraRepository repository;
 
-    @Value("${camera.search.default-buffer-meters:100}")
+    @org.springframework.beans.factory.annotation.Value("${camera.search.default-buffer-meters:100}")
     private int defaultBufferMeters;
 
-    @Value("${camera.search.max-buffer-meters:10000}")
+    @org.springframework.beans.factory.annotation.Value("${camera.search.max-buffer-meters:10000}")
     private int maxBufferMeters;
 
-    @Value("${camera.search.segment-length-meters:10000}")
+    @org.springframework.beans.factory.annotation.Value("${camera.search.segment-length-meters:10000}")
     private double segmentLengthMeters;
 
     public List<CameraResponse> findCameras(RouteCameraRequest request) {
@@ -126,20 +126,11 @@ public class CameraRouteService {
         }
     }
 
-    private static final class PreparedRoute {
+    @Value
+    private static class PreparedRoute {
 
-        private final List<String> segmentWkts;
-        private final int bufferMeters;
-        private final double lengthMeters;
-
-        private PreparedRoute(
-                List<String> segmentWkts,
-                int bufferMeters,
-                double lengthMeters
-        ) {
-            this.segmentWkts = segmentWkts;
-            this.bufferMeters = bufferMeters;
-            this.lengthMeters = lengthMeters;
-        }
+        List<String> segmentWkts;
+        int bufferMeters;
+        double lengthMeters;
     }
 }

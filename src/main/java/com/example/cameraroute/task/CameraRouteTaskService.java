@@ -5,6 +5,7 @@ import com.example.cameraroute.dto.RouteCameraRequest;
 import com.example.cameraroute.service.CameraRouteService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
@@ -102,14 +103,10 @@ public class CameraRouteTaskService {
     }
 
     @Getter
+    @AllArgsConstructor
     public static final class PageResult {
 
         private final int total;
         private final List<CameraResponse> data;
-
-        public PageResult(int total, List<CameraResponse> data) {
-            this.total = total;
-            this.data = data;
-        }
     }
 }
