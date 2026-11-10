@@ -5,6 +5,7 @@ import com.example.cameraroute.dto.CameraResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -80,11 +81,12 @@ public class CameraRepository {
         }
 
         long offset = ((long) pageNum - 1L) * (long) pageSize;
+        ResultSetExtractor<CameraPage> pageExtractor = this::extractPage;
         CameraPage page = jdbcTemplate.query(
                 connection -> createStatement(
                         connection, PAGE_SQL, routeWkts, bufferMeters, pageSize, offset
                 ),
-                resultSet -> extractPage(resultSet)
+                pageExtractor
         );
 
         if (!page.getData().isEmpty()) {
@@ -92,11 +94,13 @@ public class CameraRepository {
         }
 
         // An out-of-range page has no row carrying COUNT(*) OVER(); query the total separately.
+        ResultSetExtractor<Long> countExtractor =
+                resultSet -> resultSet.next() ? resultSet.getLong(1) : 0L;
         Long count = jdbcTemplate.query(
                 connection -> createStatement(
                         connection, COUNT_SQL, routeWkts, bufferMeters, null, null
                 ),
-                resultSet -> resultSet.next() ? resultSet.getLong(1) : 0L
+                countExtractor
         );
         return new CameraPage(count == null ? 0L : count, page.getData());
     }
