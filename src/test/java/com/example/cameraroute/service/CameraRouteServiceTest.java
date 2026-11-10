@@ -37,7 +37,7 @@ class CameraRouteServiceTest {
     @Test
     void synchronouslyQueriesSegmentedRouteAndReturnsRequestedPage() {
         RouteCameraRequest request = request("WGS84", 100);
-        CameraPage expected = new CameraPage(3, 2, 20, Collections.emptyList());
+        CameraPage expected = new CameraPage(3, Collections.emptyList());
         when(repository.findCamerasNearRoute(anyList(), eq(100), eq(2), eq(20)))
                 .thenReturn(expected);
 
@@ -83,7 +83,7 @@ class CameraRouteServiceTest {
     void acceptsGcj02AliasesAndUsesDefaultBuffer() {
         RouteCameraRequest request = request("gcj_02", null);
         when(repository.findCamerasNearRoute(anyList(), eq(100), eq(1), eq(100)))
-                .thenReturn(new CameraPage(0, 1, 100, Collections.emptyList()));
+                .thenReturn(new CameraPage(0, Collections.emptyList()));
 
         CameraPage page = service.findCameras(request, 1, 100);
 

@@ -73,7 +73,7 @@ public class CameraRepository {
             int pageSize
     ) {
         if (routeWkts == null || routeWkts.isEmpty()) {
-            return new CameraPage(0, pageNum, pageSize, Collections.<CameraResponse>emptyList());
+            return new CameraPage(0, Collections.<CameraResponse>emptyList());
         }
 
         Long count = jdbcTemplate.query(
@@ -104,7 +104,7 @@ public class CameraRepository {
                 )
         );
 
-        return new CameraPage(count == null ? 0L : count, pageNum, pageSize, data);
+        return new CameraPage(count == null ? 0L : count, data);
     }
 
     private PreparedStatement createStatement(

@@ -10,7 +10,5 @@ import java.util.List;
 public class CameraPage {
 
     private final long total;
-    private final int pageNum;
-    private final int pageSize;
     private final List<CameraResponse> data;
 }
