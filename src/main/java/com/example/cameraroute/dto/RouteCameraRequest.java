@@ -1,7 +1,6 @@
 package com.example.cameraroute.dto;
 
 import lombok.Data;
-
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
@@ -10,15 +9,7 @@ import java.util.List;
 
 @Data
 public class RouteCameraRequest {
-
-    private String routeId;
-
-    /**
-     * Coordinate type: WGS84 or GCJ-02.
-     * Defaults to WGS84 for backward compatibility.
-     */
     private String type = "WGS84";
-
     private Integer bufferDistance;
 
     @NotEmpty(message = "coordinates 不能为空")
@@ -28,10 +19,8 @@ public class RouteCameraRequest {
 
     @Data
     public static class CoordinatePoint {
-
         @NotNull(message = "经度 longitude 不能为空")
         private Double longitude;
-
         @NotNull(message = "纬度 latitude 不能为空")
         private Double latitude;
     }
