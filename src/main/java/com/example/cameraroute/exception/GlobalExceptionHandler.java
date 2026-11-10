@@ -1,7 +1,6 @@
 package com.example.cameraroute.exception;
 
 import com.example.cameraroute.dto.ApiResponse;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -39,20 +38,6 @@ public class GlobalExceptionHandler {
                 new ApiResponse<Object>(
                         400,
                         message,
-                        0,
-                        Collections.emptyList()
-                )
-        );
-    }
-
-    @ExceptionHandler(EmptyResultDataAccessException.class)
-    public ResponseEntity<ApiResponse<Object>> handleNotFound(
-            EmptyResultDataAccessException ex
-    ) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                new ApiResponse<Object>(
-                        404,
-                        "任务不存在",
                         0,
                         Collections.emptyList()
                 )

@@ -1,44 +1,97 @@
 package com.example.cameraroute.service;
 
+import com.example.cameraroute.dto.CameraPage;
 import com.example.cameraroute.dto.RouteCameraRequest;
 import com.example.cameraroute.repository.CameraRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Arrays;
+import java.util.Collections;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class CameraRouteServiceTest {
 
+    private CameraRepository repository;
     private CameraRouteService service;
 
     @BeforeEach
     void setUp() {
-        service = new CameraRouteService(mock(CameraRepository.class));
+        repository = mock(CameraRepository.class);
+        service = new CameraRouteService(repository);
         ReflectionTestUtils.setField(service, "defaultBufferMeters", 100);
         ReflectionTestUtils.setField(service, "maxBufferMeters", 10000);
         ReflectionTestUtils.setField(service, "segmentLengthMeters", 10000.0d);
+        ReflectionTestUtils.setField(service, "maxRouteLengthMeters", 5000000.0d);
     }
 
     @Test
-    void equivalentNormalizedRequestsHaveSameFingerprint() {
-        RouteCameraRequest first = request("WGS84", 100);
-        RouteCameraRequest second = request("wgs84", 100);
+    void synchronouslyQueriesSegmentedRouteAndReturnsRequestedPage() {
+        RouteCameraRequest request = request("WGS84", 100);
+        CameraPage expected = new CameraPage(3, 2, 20, Collections.emptyList());
+        when(repository.findCamerasNearRoute(anyList(), eq(100), eq(2), eq(20)))
+                .thenReturn(expected);
 
-        assertEquals(service.getRequestHash(first), service.getRequestHash(second));
+        CameraPage actual = service.findCameras(request, 2, 20);
+
+        assertSame(expected, actual);
+        verify(repository).findCamerasNearRoute(anyList(), eq(100), eq(2), eq(20));
     }
 
     @Test
-    void differentSearchBuffersHaveDifferentFingerprints() {
-        assertNotEquals(
-                service.getRequestHash(request("WGS84", 100)),
-                service.getRequestHash(request("WGS84", 200))
+    void rejectsInvalidPagination() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.findCameras(request("WGS84", 100), 0, 20)
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.findCameras(request("WGS84", 100), 1, 1001)
         );
     }
 
-    private RouteCameraRequest request(String type, int buffer) {
+    @Test
+    void rejectsRouteLongerThanConfiguredSynchronousLimit() {
+        RouteCameraRequest request = new RouteCameraRequest();
+        request.setType("WGS84");
+        request.setBufferDistance(100);
+
+        RouteCameraRequest.CoordinatePoint start = new RouteCameraRequest.CoordinatePoint();
+        start.setLongitude(100.0d);
+        start.setLatitude(20.0d);
+        RouteCameraRequest.CoordinatePoint end = new RouteCameraRequest.CoordinatePoint();
+        end.setLongitude(150.0d);
+        end.setLatitude(20.0d);
+        request.setCoordinates(Arrays.asList(start, end));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.findCameras(request, 1, 100)
+        );
+    }
+
+    @Test
+    void acceptsGcj02AliasesAndUsesDefaultBuffer() {
+        RouteCameraRequest request = request("gcj_02", null);
+        when(repository.findCamerasNearRoute(anyList(), eq(100), eq(1), eq(100)))
+                .thenReturn(new CameraPage(0, 1, 100, Collections.emptyList()));
+
+        CameraPage page = service.findCameras(request, 1, 100);
+
+        assertEquals(0, page.getTotal());
+        verify(repository).findCamerasNearRoute(anyList(), eq(100), eq(1), eq(100));
+    }
+
+    private RouteCameraRequest request(String type, Integer buffer) {
         RouteCameraRequest request = new RouteCameraRequest();
         request.setType(type);
         request.setBufferDistance(buffer);
@@ -50,7 +103,7 @@ class CameraRouteServiceTest {
         end.setLongitude(113.270000d);
         end.setLatitude(23.132000d);
 
-        request.setCoordinates(java.util.Arrays.asList(start, end));
+        request.setCoordinates(Arrays.asList(start, end));
         return request;
     }
 }

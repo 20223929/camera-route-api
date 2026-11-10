@@ -19,6 +19,9 @@ camera:
   search:
     default-buffer-meters: 100
     max-buffer-meters: 10000
-    # 路线按约 10 公里切段；超过 500 公里自动转为异步任务
+    # 所有路线均同步查询；内部按约 10 公里切段。
     segment-length-meters: 10000
-    async-threshold-meters: 500000
+    # 同步查询的资源保护上限，默认 5000 公里。
+    max-route-length-meters: 5000000
+    # 单条 SQL 的最长执行时间，单位秒。
+    query-timeout-seconds: 60
