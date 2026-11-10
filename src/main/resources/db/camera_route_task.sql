@@ -41,15 +41,15 @@ CREATE TABLE IF NOT EXISTS public.camera_route_task_result (
     id         bigserial PRIMARY KEY,
     task_id    varchar(64) NOT NULL
                REFERENCES public.camera_route_task (task_id) ON DELETE CASCADE,
-    sbbm       varchar(128),
+    sbbm       text,
     sbmc       text,
     sbcs       text,
     x          double precision,
     y          double precision,
-    xzqbm      varchar(64),
-    xzqmc      varchar(255),
-    pcsbm      varchar(64),
-    pcsmc      varchar(255),
+    xzqbm      text,
+    xzqmc      text,
+    pcsbm      text,
+    pcsmc      text,
     distance   numeric(14, 2) NOT NULL
 );
 
