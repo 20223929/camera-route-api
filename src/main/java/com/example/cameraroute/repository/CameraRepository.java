@@ -94,7 +94,7 @@ public class CameraRepository {
         // TEMPORARY: emit PostgreSQL-ready bind values for local SQL verification; remove after testing.
         log.debug("event=route.camera.sql.page sql={}", PAGE_SQL);
         log.debug(
-                "event=route.camera.sql.page.params param1_routeWktsSql={} param2_bufferMeters={} "
+                "event=route.camera.sql.page.params param1_routeWkts={} param2_bufferMeters={} "
                         + "param3_pageSize={} param4_offset={} queryTimeoutSeconds={}",
                 routeWkts, bufferMeters, pageSize, offset, queryTimeoutSeconds
         );
@@ -114,7 +114,7 @@ public class CameraRepository {
             log.debug("event=route.camera.sql.count sql={}", COUNT_SQL);
             // TEMPORARY: emit PostgreSQL-ready bind values for local SQL verification.
             log.debug(
-                    "event=route.camera.sql.count.params param1_routeWktsSql={} param2_bufferMeters={} "
+                    "event=route.camera.sql.count.params param1_routeWkts={} param2_bufferMeters={} "
                             + "queryTimeoutSeconds={}",
                     routeWkts, bufferMeters, queryTimeoutSeconds
             );
