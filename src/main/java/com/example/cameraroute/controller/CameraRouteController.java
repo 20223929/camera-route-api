@@ -31,6 +31,6 @@ public class CameraRouteController {
             @RequestParam(defaultValue = "500") int pageSize
     ) {
         CameraPage page = service.findCameras(request, pageNum, pageSize);
-        return ApiResponse.success(page.getData(), page.getTotal());
+        return ApiResponse.success(page.getData(), page.getTotal(), pageNum, pageSize);
     }
 }
