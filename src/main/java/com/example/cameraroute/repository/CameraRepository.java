@@ -96,7 +96,7 @@ public class CameraRepository {
         log.debug(
                 "event=route.camera.sql.page.params param1_routeWktsSql={} param2_bufferMeters={} "
                         + "param3_pageSize={} param4_offset={} queryTimeoutSeconds={}",
-                toPostgresTextArraySql(routeWkts), bufferMeters, pageSize, offset, queryTimeoutSeconds
+                routeWkts, bufferMeters, pageSize, offset, queryTimeoutSeconds
         );
 
         ResultSetExtractor<CameraPage> pageExtractor = this::extractPage;
@@ -116,7 +116,7 @@ public class CameraRepository {
             log.debug(
                     "event=route.camera.sql.count.params param1_routeWktsSql={} param2_bufferMeters={} "
                             + "queryTimeoutSeconds={}",
-                    toPostgresTextArraySql(routeWkts), bufferMeters, queryTimeoutSeconds
+                    routeWkts, bufferMeters, queryTimeoutSeconds
             );
             ResultSetExtractor<Long> countExtractor =
                     resultSet -> resultSet.next() ? resultSet.getLong(1) : 0L;
@@ -136,23 +136,6 @@ public class CameraRepository {
                 (System.nanoTime() - startedAt) / 1_000_000L
         );
         return page;
-    }
-
-    /**
-     * Formats route WKT values as a PostgreSQL text[] expression for copy-and-paste SQL debugging.
-     * This output is for logging only and is never used to execute database statements.
-     */
-    private String toPostgresTextArraySql(List<String> routeWkts) {
-        StringBuilder sqlArray = new StringBuilder("ARRAY[");
-        for (int i = 0; i < routeWkts.size(); i++) {
-            if (i > 0) {
-                sqlArray.append(", ");
-            }
-            sqlArray.append('\'')
-                    .append(routeWkts.get(i).replace("'", "''"))
-                    .append('\'');
-        }
-        return sqlArray.append("]::text[]").toString();
     }
 
     private CameraPage extractPage(ResultSet resultSet) throws SQLException {
