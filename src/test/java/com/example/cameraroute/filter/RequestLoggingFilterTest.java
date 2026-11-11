@@ -1,7 +1,7 @@
 package com.example.cameraroute.filter;
 
-import org.junit.jupiter.api.Test;
 import javax.servlet.ServletException;
+import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -46,6 +46,7 @@ class RequestLoggingFilterTest {
         assertEquals(36, requestId.length());
         assertEquals(36, traceId.length());
     }
+
     @Test
     void clearsMdcWhenDownstreamFilterThrows() {
         MockHttpServletRequest request =
