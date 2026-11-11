@@ -1,6 +1,7 @@
 package com.example.cameraroute.filter;
 
 import org.junit.jupiter.api.Test;
+import javax.servlet.ServletException;
 import org.slf4j.MDC;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -8,6 +9,7 @@ import org.springframework.mock.web.MockFilterChain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class RequestLoggingFilterTest {
 
@@ -43,5 +45,21 @@ class RequestLoggingFilterTest {
         String traceId = (String) response.getHeader("X-Trace-Id");
         assertEquals(36, requestId.length());
         assertEquals(36, traceId.length());
+    }
+    @Test
+    void clearsMdcWhenDownstreamFilterThrows() {
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("POST", "/api/camera/route/list");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        assertThrows(
+                ServletException.class,
+                () -> filter.doFilter(request, response, (servletRequest, servletResponse) -> {
+                    throw new ServletException("downstream failure");
+                })
+        );
+
+        assertNull(MDC.get("request_id"));
+        assertNull(MDC.get("trace_id"));
     }
 }
