@@ -47,7 +47,7 @@ class CameraRepositoryTest {
     void bindsRouteSegmentsBufferPaginationAndQueryTimeout() throws Exception {
         PreparedStatement statement = mock(PreparedStatement.class);
         when(connection.prepareStatement(anyString())).thenReturn(statement);
-        when(jdbcTemplate.query(
+        when(jdbcTemplate.<CameraPage>query(
                 any(PreparedStatementCreator.class),
                 any(ResultSetExtractor.class)
         )).thenAnswer(invocation -> {
