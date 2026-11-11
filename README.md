@@ -82,6 +82,7 @@
   "total": 1280,
   "pageNum": 1,
   "pageSize": 500,
+  "currentCount": 1,
   "totalPages": 3,
   "data": [
     {
@@ -100,7 +101,7 @@
 }
 ```
 
-`total` 是全路线去重后的摄像头总数；`pageNum` 是当前页码；`pageSize` 是每页条数；`totalPages` 是总页数，按 `total / pageSize` 向上取整，`total` 为 0 时为 0。结果按摄像头到路线的最短距离升序排列，同距离时按 `sbbm` 排序。
+`total` 是全路线去重后的摄像头总数；`pageNum` 是当前页码；`pageSize` 是请求的每页数量上限；`currentCount` 是本次响应实际返回的记录数，等于 `data` 数组长度；`totalPages` 是总页数，按 `total / pageSize` 向上取整，`total` 为 0 时为 0。最后一页的 `currentCount` 可能小于 `pageSize`，例如总数为 1280、每页 500 条时，第三页的 `currentCount` 为 280。结果按摄像头到路线的最短距离升序排列，同距离时按 `sbbm` 排序。
 
 ### 4.2 参数限制
 
