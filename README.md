@@ -80,6 +80,9 @@
   "code": 200,
   "message": "success",
   "total": 1280,
+  "pageNum": 1,
+  "pageSize": 500,
+  "totalPages": 3,
   "data": [
     {
       "sbbm": "设备编码",
@@ -97,7 +100,7 @@
 }
 ```
 
-`total` 是全路线去重后的摄像头总数。结果按摄像头到路线的最短距离升序排列，同距离时按 `sbbm` 排序。
+`total` 是全路线去重后的摄像头总数；`pageNum` 是当前页码；`pageSize` 是每页条数；`totalPages` 是总页数，按 `total / pageSize` 向上取整，`total` 为 0 时为 0。结果按摄像头到路线的最短距离升序排列，同距离时按 `sbbm` 排序。
 
 ### 4.2 参数限制
 
