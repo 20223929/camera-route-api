@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -47,14 +48,14 @@ class CameraRepositoryTest {
     void bindsRouteSegmentsBufferPaginationAndQueryTimeout() throws Exception {
         PreparedStatement statement = mock(PreparedStatement.class);
         when(connection.prepareStatement(anyString())).thenReturn(statement);
-        when(jdbcTemplate.<CameraPage>query(
-                any(PreparedStatementCreator.class),
-                any(ResultSetExtractor.class)
-        )).thenAnswer(invocation -> {
+        doAnswer(invocation -> {
             PreparedStatementCreator creator = invocation.getArgument(0);
             creator.createPreparedStatement(connection);
             return new CameraPage(12L, Collections.emptyList());
-        });
+        }).when(jdbcTemplate).query(
+                any(PreparedStatementCreator.class),
+                org.mockito.ArgumentMatchers.<ResultSetExtractor<CameraPage>>any()
+        );
 
         CameraPage page = repository.findCamerasNearRoute(
                 Arrays.asList("LINESTRING(113 23,113.01 23)"),
