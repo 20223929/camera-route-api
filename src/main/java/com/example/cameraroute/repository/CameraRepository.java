@@ -148,9 +148,9 @@ public class CameraRepository {
             if (i > 0) {
                 sqlArray.append(", ");
             }
-            sqlArray.append(''')
+            sqlArray.append('\'')
                     .append(routeWkts.get(i).replace("'", "''"))
-                    .append(''');
+                    .append('\'');
         }
         return sqlArray.append("]::text[]").toString();
     }
