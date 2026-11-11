@@ -16,8 +16,9 @@ import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -63,9 +64,7 @@ class CameraRepositoryTest {
         );
 
         assertEquals(12L, page.getTotal());
-        verify(connection).createArrayOf(
-                eq("text"), any(String[].class)
-        );
+        verify(connection).createArrayOf(eq("text"), any(String[].class));
         verify(statement).setArray(1, sqlArray);
         verify(statement).setInt(2, 250);
         verify(statement).setInt(3, 25);
@@ -126,8 +125,8 @@ class CameraRepositoryTest {
         assertEquals(0, page.getData().size());
         verify(pageStatement).setInt(3, 20);
         verify(pageStatement).setLong(4, 1960L);
-        verify(countStatement, never()).setInt(eq(3), any(Integer.class));
-        verify(countStatement, never()).setLong(eq(4), any(Long.class));
+        verify(countStatement, never()).setInt(eq(3), anyInt());
+        verify(countStatement, never()).setLong(eq(4), anyLong());
         verify(pageStatement).setQueryTimeout(17);
         verify(countStatement).setQueryTimeout(17);
     }
