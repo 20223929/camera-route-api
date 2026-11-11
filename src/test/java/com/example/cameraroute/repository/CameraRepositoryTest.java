@@ -1,6 +1,7 @@
 package com.example.cameraroute.repository;
 
 import com.example.cameraroute.dto.CameraPage;
+import com.example.cameraroute.dto.CameraResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -51,7 +52,7 @@ class CameraRepositoryTest {
         doAnswer(invocation -> {
             PreparedStatementCreator creator = invocation.getArgument(0);
             creator.createPreparedStatement(connection);
-            return new CameraPage(12L, Collections.emptyList());
+            return new CameraPage(12L, Collections.singletonList(mock(CameraResponse.class)));
         }).when(jdbcTemplate).query(
                 any(PreparedStatementCreator.class),
                 org.mockito.ArgumentMatchers.<ResultSetExtractor<CameraPage>>any()
@@ -65,6 +66,8 @@ class CameraRepositoryTest {
         );
 
         assertEquals(12L, page.getTotal());
+        assertEquals(1, page.getData().size());
+        verify(connection).prepareStatement(anyString());
         verify(connection).createArrayOf(eq("text"), any(String[].class));
         verify(statement).setArray(1, sqlArray);
         verify(statement).setInt(2, 250);
