@@ -2,6 +2,8 @@ package com.example.cameraroute.dto;
 
 import lombok.Getter;
 
+import java.util.Collection;
+
 @Getter
 public class ApiResponse<T> {
 
@@ -10,6 +12,7 @@ public class ApiResponse<T> {
     private long total;
     private int pageNum;
     private int pageSize;
+    private int currentCount;
     private long totalPages;
     private T data;
 
@@ -17,7 +20,7 @@ public class ApiResponse<T> {
      * Creates a response without pagination metadata, for validation and server errors.
      */
     public ApiResponse(int code, String message, long total, T data) {
-        this(code, message, total, 0, 0, 0, data);
+        this(code, message, total, 0, 0, 0, 0, data);
     }
 
     private ApiResponse(
@@ -26,6 +29,7 @@ public class ApiResponse<T> {
             long total,
             int pageNum,
             int pageSize,
+            int currentCount,
             long totalPages,
             T data
     ) {
@@ -34,6 +38,7 @@ public class ApiResponse<T> {
         this.total = total;
         this.pageNum = pageNum;
         this.pageSize = pageSize;
+        this.currentCount = currentCount;
         this.totalPages = totalPages;
         this.data = data;
     }
@@ -49,8 +54,11 @@ public class ApiResponse<T> {
         }
         long totalPages = total / pageSize
                 + (total % pageSize == 0 ? 0 : 1);
+        int currentCount = data instanceof Collection
+                ? ((Collection<?>) data).size() : 0;
         return new ApiResponse<T>(
-                200, "success", total, pageNum, pageSize, totalPages, data
+                200, "success", total, pageNum, pageSize,
+                currentCount, totalPages, data
         );
     }
 }
