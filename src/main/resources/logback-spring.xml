@@ -24,6 +24,9 @@
         </encoder>
     </appender>
 
+    <!-- Enable SQL templates for camera queries without enabling DEBUG globally. -->
+    <logger name="com.example.cameraroute.repository.CameraRepository" level="DEBUG"/>
+
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>

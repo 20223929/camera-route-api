@@ -91,6 +91,9 @@ public class CameraRepository {
                 routeWkts.size(), bufferMeters, pageNum, pageSize, queryTimeoutSeconds
         );
 
+        // Print the SQL template at DEBUG level; route WKT values are intentionally excluded.
+        log.debug("event=route.camera.sql.page sql={}", PAGE_SQL);
+
         ResultSetExtractor<CameraPage> pageExtractor = this::extractPage;
         CameraPage page = jdbcTemplate.query(
                 connection -> createStatement(
@@ -103,6 +106,7 @@ public class CameraRepository {
         if (page.getData().isEmpty()) {
             // An out-of-range page has no row carrying COUNT(*) OVER(); query the total separately.
             countFallback = true;
+            log.debug("event=route.camera.sql.count sql={}", COUNT_SQL);
             ResultSetExtractor<Long> countExtractor =
                     resultSet -> resultSet.next() ? resultSet.getLong(1) : 0L;
             Long count = jdbcTemplate.query(
