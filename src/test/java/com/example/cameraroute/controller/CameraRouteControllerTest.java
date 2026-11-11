@@ -29,25 +29,41 @@ class CameraRouteControllerTest {
     }
 
     @Test
-    void returnsPaginationMetadataAlongsideCameraData() {
+    void returnsActualCountForLastPageWhenItIsSmallerThanPageSize() {
         RouteCameraRequest request = new RouteCameraRequest();
-        CameraPage page = new CameraPage(1280L, Collections.<CameraResponse>emptyList());
-        when(service.findCameras(request, 2, 500)).thenReturn(page);
+        List<CameraResponse> lastPageData =
+                Collections.nCopies(280, mock(CameraResponse.class));
+        CameraPage page = new CameraPage(1280L, lastPageData);
+        when(service.findCameras(request, 3, 500)).thenReturn(page);
 
         ApiResponse<List<CameraResponse>> response =
-                controller.getRouteCameras(request, 2, 500);
+                controller.getRouteCameras(request, 3, 500);
 
         assertEquals(200, response.getCode());
         assertEquals(1280L, response.getTotal());
-        assertEquals(2, response.getPageNum());
+        assertEquals(3, response.getPageNum());
         assertEquals(500, response.getPageSize());
+        assertEquals(280, response.getCurrentCount());
         assertEquals(3L, response.getTotalPages());
         assertSame(page.getData(), response.getData());
-        verify(service).findCameras(request, 2, 500);
+        verify(service).findCameras(request, 3, 500);
     }
 
     @Test
-    void reportsZeroTotalPagesWhenThereAreNoResults() {
+    void reportsFullPageCountWhenPageIsFull() {
+        List<CameraResponse> pageData =
+                Collections.nCopies(500, mock(CameraResponse.class));
+
+        ApiResponse<List<CameraResponse>> response =
+                ApiResponse.success(pageData, 1280L, 1, 500);
+
+        assertEquals(500, response.getCurrentCount());
+        assertEquals(500, response.getPageSize());
+        assertEquals(3L, response.getTotalPages());
+    }
+
+    @Test
+    void reportsZeroCurrentCountAndTotalPagesWhenThereAreNoResults() {
         ApiResponse<List<CameraResponse>> response = ApiResponse.success(
                 Collections.<CameraResponse>emptyList(), 0L, 1, 500
         );
@@ -55,6 +71,7 @@ class CameraRouteControllerTest {
         assertEquals(0L, response.getTotal());
         assertEquals(1, response.getPageNum());
         assertEquals(500, response.getPageSize());
+        assertEquals(0, response.getCurrentCount());
         assertEquals(0L, response.getTotalPages());
     }
 }
