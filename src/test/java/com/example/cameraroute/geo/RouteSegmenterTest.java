@@ -123,7 +123,7 @@ class RouteSegmenterTest {
     @Test
     void convertsGcj02ToWgs84() {
         CoordinateConverter.Point converted =
-                CoordinateConverter.toWgs84(116.404, 39.915, "GCJ-02");
+                CoordinateConverter.toWgs84(116.404, 39.915, CoordinateType.GCJ_02);
 
         assertNotEquals(116.404, converted.getLongitude(), 0.000001);
         assertNotEquals(39.915, converted.getLatitude(), 0.000001);
@@ -132,9 +132,9 @@ class RouteSegmenterTest {
     @Test
     void leavesWgs84AndGcj02CoordinatesOutsideChinaUnchanged() {
         CoordinateConverter.Point wgs84 =
-                CoordinateConverter.toWgs84(116.404, 39.915, "WGS84");
+                CoordinateConverter.toWgs84(116.404, 39.915, CoordinateType.WGS84);
         CoordinateConverter.Point outsideChina =
-                CoordinateConverter.toWgs84(-73.9857, 40.7484, "GCJ-02");
+                CoordinateConverter.toWgs84(-73.9857, 40.7484, CoordinateType.GCJ_02);
 
         assertEquals(116.404, wgs84.getLongitude(), 0.0);
         assertEquals(39.915, wgs84.getLatitude(), 0.0);
@@ -146,7 +146,7 @@ class RouteSegmenterTest {
     void rejectsUnsupportedCoordinateSystem() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> CoordinateConverter.toWgs84(116.404, 39.915, "BD-09")
+                () -> CoordinateType.fromValue("BD-09")
         );
     }
 
