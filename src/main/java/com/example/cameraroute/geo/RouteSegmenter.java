@@ -33,8 +33,8 @@ public final class RouteSegmenter {
             throw new IllegalArgumentException("路线至少需要两个坐标点");
         }
 
-        if (maxMeters <= 0) {
-            throw new IllegalArgumentException("分段长度必须大于 0");
+        if (!Double.isFinite(maxMeters) || maxMeters <= 0) {
+            throw new IllegalArgumentException("分段长度必须是有限的正数");
         }
 
         List<String> result = new ArrayList<String>();
