@@ -407,13 +407,24 @@
                 } catch (parseError) {
                     throw new Error("服务器返回了无法识别的响应（HTTP " + response.status + "）");
                 }
-                if (!response.ok) throw new Error(result.message || result.error || ("HTTP " + response.status));
-                const cameras = Array.isArray(result.data) ? result.data : [];
-                total = Number(result.total) || 0;
+                if (!response.ok) {
+                    throw new Error(result.msg || result.message || result.error || ("HTTP " + response.status));
+                }
+                if (!result || result.code !== 200) {
+                    throw new Error(result && result.msg ? result.msg : "接口返回失败");
+                }
+                const pageResult = result.data || {};
+                if (!Array.isArray(pageResult.data)) {
+                    throw new Error("接口分页数据格式不正确");
+                }
+                const cameras = pageResult.data;
+                total = Number(pageResult.total) || 0;
                 renderCameras(cameras);
                 $("totalCount").textContent = total.toLocaleString("zh-CN");
                 $("currentCount").textContent = cameras.length.toLocaleString("zh-CN");
-                const totalPages = Math.max(1, Math.ceil(total / pageSize));
+                const totalPages = Math.max(
+                    1, Number(pageResult.totalPages) || Math.ceil(total / pageSize)
+                );
                 $("pageInfo").textContent = "第 " + currentPage + " / " + totalPages + " 页 · 共 " + total.toLocaleString("zh-CN") + " 条";
                 $("prevPage").disabled = currentPage <= 1;
                 $("nextPage").disabled = currentPage >= totalPages;
