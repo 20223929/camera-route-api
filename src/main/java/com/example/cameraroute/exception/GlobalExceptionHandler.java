@@ -13,6 +13,7 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import javax.validation.ConstraintViolationException;
 import java.util.Collections;
@@ -27,7 +28,8 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException.class,
             BindException.class,
             ConstraintViolationException.class,
-            MissingServletRequestParameterException.class
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class
     })
     public ResponseEntity<Map<String, String>> handleBadRequest(Exception ex) {
         String message = "请求参数格式或内容不正确";
@@ -47,6 +49,10 @@ public class GlobalExceptionHandler {
             }
         } else if (ex instanceof MissingServletRequestParameterException) {
             message = ex.getMessage();
+        } else if (ex instanceof MethodArgumentTypeMismatchException) {
+            MethodArgumentTypeMismatchException mismatch =
+                    (MethodArgumentTypeMismatchException) ex;
+            message = "请求参数 " + mismatch.getName() + " 格式不正确";
         }
         log.warn("event=request.validation.failed exceptionType={} message={}",
                 ex.getClass().getSimpleName(), message);
