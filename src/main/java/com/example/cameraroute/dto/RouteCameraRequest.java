@@ -1,6 +1,7 @@
 package com.example.cameraroute.dto;
 
 import lombok.Data;
+
 import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotEmpty;
@@ -10,6 +11,7 @@ import java.util.List;
 
 @Data
 public class RouteCameraRequest {
+
     private String type = "WGS84";
     private Integer bufferDistance;
 
@@ -19,6 +21,7 @@ public class RouteCameraRequest {
 
     @Data
     public static class Geometry {
+
         @NotBlank(message = "geometry.type 不能为空")
         private String type;
 

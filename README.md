@@ -58,10 +58,13 @@
 {
   "type": "WGS84",
   "bufferDistance": 100,
-  "coordinates": [
-    {"longitude": 113.264385, "latitude": 23.129112},
-    {"longitude": 113.270000, "latitude": 23.132000}
-  ]
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [
+      [113.264385, 23.129112],
+      [113.270000, 23.132000]
+    ]
+  }
 }
 ```
 
