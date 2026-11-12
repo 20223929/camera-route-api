@@ -78,33 +78,39 @@
 | `pageNum` | Integer | 1 | URL 查询参数，页码从 1 开始 |
 | `pageSize` | Integer | 500 | URL 查询参数，每页数量最大 1000 |
 
-短路线和长路线使用同一个接口，同步等待查询完成后返回分页结果。成功响应统一使用 `PageResult<T>` 分页结构，不包含业务 `code` 或 `message` 字段：
+短路线和长路线使用同一个接口，同步等待查询完成后返回分页结果。项目所有 Controller 成功响应统一使用 `Resp<T>`，分页接口的数据类型为 `Resp<PageResult<CameraResponse>>`：
 
 ```json
 {
-  "total": 1280,
-  "pageNum": 1,
-  "pageSize": 500,
-  "currentCount": 1,
-  "totalPages": 3,
-  "data": [
-    {
-      "sbbm": "设备编码",
-      "sbmc": "设备名称",
-      "sbcs": "设备厂商",
-      "x": 113.264385,
-      "y": 23.129112,
-      "xzqbm": "行政区编码",
-      "xzqmc": "行政区名称",
-      "pcsbm": "派出所编码",
-      "pcsmc": "派出所名称",
-      "distance": 12.35
-    }
-  ]
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "total": 1280,
+    "pageNum": 1,
+    "pageSize": 500,
+    "currentCount": 500,
+    "totalPages": 3,
+    "data": [
+      {
+        "sbbm": "设备编码",
+        "sbmc": "设备名称",
+        "sbcs": "设备厂商",
+        "x": 113.264385,
+        "y": 23.129112,
+        "xzqbm": "行政区编码",
+        "xzqmc": "行政区名称",
+        "pcsbm": "派出所编码",
+        "pcsmc": "派出所名称",
+        "distance": 12.35
+      }
+    ]
+  }
 }
 ```
 
-`total` 是全路线去重后的摄像头总数；`pageNum` 是当前页码；`pageSize` 是请求的每页数量上限；`currentCount` 是本次响应实际返回的记录数，等于 `data` 数组长度；`totalPages` 是总页数，按 `total / pageSize` 向上取整，`total` 为 0 时为 0。最后一页的 `currentCount` 可能小于 `pageSize`，例如总数为 1280、每页 500 条时，第三页的 `currentCount` 为 280。结果按摄像头到路线的最短距离升序排列，同距离时按 `sbbm` 排序。
+`code` 为业务响应码，成功为 `200`；`msg` 为响应说明；`data` 为业务数据。分页数据中的 `total` 是全路线去重后的摄像头总数；`pageNum` 是当前页码；`pageSize` 是请求的每页数量上限；`currentCount` 是本次响应实际返回的记录数，等于内层 `data` 数组长度；`totalPages` 是总页数，按 `total / pageSize` 向上取整，`total` 为 0 时为 0。最后一页的 `currentCount` 可能小于 `pageSize`，例如总数为 1280、每页 500 条时，第三页的 `currentCount` 为 280。结果按摄像头到路线的最短距离升序排列，同距离时按 `sbbm` 排序。
+
+参数校验失败、请求方法或媒体类型不支持、数据库异常及其他服务器异常也统一返回 `Resp<Void>`，其中 `data` 为 `null`；同时保留对应的 HTTP 状态码（例如参数错误为 400、服务器错误为 500）。
 
 ### 4.2 参数限制
 
@@ -148,7 +154,7 @@ camera:
 
 排查请求时，可使用响应头中的 `X-Request-Id` 或 `X-Trace-Id` 搜索对应日志。
 
-参数校验失败返回 HTTP 400，服务器异常返回 HTTP 500，错误响应仅包含 `message`，不再使用业务 `code` 字段。
+参数校验失败返回 HTTP 400，服务器异常返回 HTTP 500；成功和错误响应均使用统一的 `code`、`msg`、`data` 三字段结构。
 
 ## 7. 构建与运行
 
