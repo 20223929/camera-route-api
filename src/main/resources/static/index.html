@@ -326,24 +326,29 @@
                     '</tr>';
             }).join("");
 
-            cameras.forEach(camera => {
-                const longitude = Number(camera.x);
-                const latitude = Number(camera.y);
-                if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
-                const marker = L.circleMarker([latitude, longitude], {
-                    radius: 5, color: "#fff", weight: 1, fillColor: "#ff657a", fillOpacity: .95
-                }).bindPopup(
-                    "<strong>" + escapeHtml(camera.sbmc || "未命名设备") + "</strong><br>" +
-                    "设备编码：" + escapeHtml(camera.sbbm) + "<br>" +
-                    "距路线：" + formatNumber(camera.distance, 2) + " 米<br>" +
-                    "厂商：" + escapeHtml(camera.sbcs || "—")
-                ).addTo(cameraLayer);
-                cameraMarkers.set(String(camera.sbbm), marker);
-            });
-
             tbody.querySelectorAll("tr[data-code]").forEach(row => {
                 row.addEventListener("click", () => selectCamera(row.dataset.code, row));
             });
+
+            // 列表是主要查询结果；地图标记失败不能反过来清空已渲染的列表。
+            try {
+                cameras.forEach(camera => {
+                    const longitude = Number(camera.x);
+                    const latitude = Number(camera.y);
+                    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
+                    const marker = L.circleMarker([latitude, longitude], {
+                        radius: 5, color: "#fff", weight: 1, fillColor: "#ff657a", fillOpacity: .95
+                    }).bindPopup(
+                        "<strong>" + escapeHtml(camera.sbmc || "未命名设备") + "</strong><br>" +
+                        "设备编码：" + escapeHtml(camera.sbbm) + "<br>" +
+                        "距路线：" + formatNumber(camera.distance, 2) + " 米<br>" +
+                        "厂商：" + escapeHtml(camera.sbcs || "—")
+                    ).addTo(cameraLayer);
+                    cameraMarkers.set(String(camera.sbbm), marker);
+                });
+            } catch (mapError) {
+                console.error("摄像头列表已渲染，但地图标记绘制失败：", mapError);
+            }
         }
 
         function selectCamera(code, row) {
@@ -371,6 +376,7 @@
             renderCameras([]);
             $("totalCount").textContent = "—";
             $("currentCount").textContent = "0";
+            let resultsRendered = false;
             try {
                 coordinates = parseCoordinates();
                 const bufferDistance = Number($("buffer").value);
@@ -420,6 +426,7 @@
                 const cameras = pageResult.data;
                 total = Number(pageResult.total) || 0;
                 renderCameras(cameras);
+                resultsRendered = true;
                 $("totalCount").textContent = total.toLocaleString("zh-CN");
                 $("currentCount").textContent = cameras.length.toLocaleString("zh-CN");
                 const totalPages = Math.max(
@@ -430,11 +437,14 @@
                 $("nextPage").disabled = currentPage >= totalPages;
                 setStatus("查询完成：本页返回 " + cameras.length + " 条，路线周边共 " + total.toLocaleString("zh-CN") + " 个摄像头。", "ok");
             } catch (error) {
-                renderCameras([]);
-                total = 0;
-                $("totalCount").textContent = "—";
-                $("currentCount").textContent = "0";
-                $("pageInfo").textContent = "查询失败";
+                // 如果数据已写入表格，后续地图或状态更新异常不应清空列表。
+                if (!resultsRendered) {
+                    renderCameras([]);
+                    $("currentCount").textContent = "0";
+                }
+                total = resultsRendered ? total : 0;
+                $("totalCount").textContent = resultsRendered ? total.toLocaleString("zh-CN") : "—";
+                $("pageInfo").textContent = resultsRendered ? "数据已显示，部分界面更新失败" : "查询失败";
                 setStatus(
                     error.name === "AbortError"
                         ? "查询超时（65 秒），请检查服务状态或缩短路线。"
