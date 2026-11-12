@@ -47,8 +47,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
                     request.getMethod(), request.getRequestURI(), response.getStatus(),
                     (System.nanoTime() - startedAt) / 1_000_000L
             );
-            MDC.remove("request_id");
-            MDC.remove("trace_id");
+            MDC.clear();
         }
     }
 

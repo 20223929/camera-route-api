@@ -76,6 +76,7 @@ class CameraRepositoryTest {
         verify(statement).setInt(2, 250);
         verify(statement).setInt(3, 25);
         verify(statement).setLong(4, 50L);
+        verify(sqlArray).free();
         verify(statement).setQueryTimeout(17);
     }
 
@@ -122,6 +123,7 @@ class CameraRepositoryTest {
         verify(connection).prepareStatement(anyString());
         verify(statement).setInt(3, 20);
         verify(statement).setLong(4, 1960L);
+        verify(sqlArray).free();
         verify(statement).setQueryTimeout(17);
         verify(jdbcTemplate, org.mockito.Mockito.times(1)).query(
                 any(PreparedStatementCreator.class),

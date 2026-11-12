@@ -17,7 +17,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -34,46 +33,48 @@ public class CameraRepository {
      * 使用 geom::geography 表达式匹配现有 geography GiST 索引，
      * 由 ST_DWithin 完成空间索引候选筛选和精确的米制距离判断。
      */
-    private static final String ROUTE_CTE =
-            "WITH route_geometries AS ( "
-                    + "SELECT ST_GeomFromText(wkt, 4326) AS geom "
-                    + "FROM unnest(?::text[]) AS routes(wkt) "
-                    + "), route_segments AS ( "
-                    + "SELECT geom::geography AS geog "
-                    + "FROM route_geometries "
-                    + "), candidates AS ( "
-                    + "SELECT c.sbbm, c.sbmc, c.sbcs, c.x, c.y, c.xzqbm, c.xzqmc, "
-                    + "c.pcsbm, c.pcsmc, "
-                    + "ST_Distance(c.geom::geography, r.geog) AS distance_m "
-                    + "FROM " + CAMERA_TABLE + " c "
-                    + "JOIN route_segments r "
-                    + "ON ST_DWithin(c.geom::geography, r.geog, ?) "
-                    + "WHERE c.sbbm IS NOT NULL "
-                    + "AND c.geom IS NOT NULL "
-                    + "AND NOT ST_IsEmpty(c.geom) "
-                    + "AND ST_SRID(c.geom) = 4326 "
-                    + "AND GeometryType(c.geom) = 'POINT' "
-                    + "), deduplicated AS ( "
-                    + "SELECT DISTINCT ON (sbbm) "
-                    + "sbbm, sbmc, sbcs, x, y, xzqbm, xzqmc, "
-                    + "pcsbm, pcsmc, distance_m "
-                    + "FROM candidates "
-                    + "ORDER BY sbbm, distance_m "
-                    + "), total AS ( "
-                    + "SELECT COUNT(*) AS total_count FROM deduplicated "
-                    + "), paged AS ( "
-                    + "SELECT * FROM deduplicated "
-                    + "ORDER BY distance_m ASC, sbbm ASC LIMIT ? OFFSET ? "
-                    + ") ";
+    private static final String PAGE_SQL = buildPageSql();
 
-    private static final String PAGE_SQL =
-            ROUTE_CTE
-                    + "SELECT p.sbbm, p.sbmc, p.sbcs, p.x, p.y, p.xzqbm, p.xzqmc, "
-                    + "p.pcsbm, p.pcsmc, "
-                    + "ROUND(p.distance_m::numeric, 2) AS distance, "
-                    + "t.total_count "
-                    + "FROM total t LEFT JOIN paged p ON TRUE "
-                    + "ORDER BY p.distance_m ASC NULLS LAST, p.sbbm ASC NULLS LAST";
+    private static String buildPageSql() {
+        StringBuilder sql = new StringBuilder(1800);
+        sql.append("WITH route_geometries AS ( ")
+                .append("SELECT ST_GeomFromText(wkt, 4326) AS geom ")
+                .append("FROM unnest(?::text[]) AS routes(wkt) ")
+                .append("), route_segments AS ( ")
+                .append("SELECT geom::geography AS geog ")
+                .append("FROM route_geometries ")
+                .append("), candidates AS ( ")
+                .append("SELECT c.sbbm, c.sbmc, c.sbcs, c.x, c.y, c.xzqbm, c.xzqmc, ")
+                .append("c.pcsbm, c.pcsmc, ")
+                .append("ST_Distance(c.geom::geography, r.geog) AS distance_m ")
+                .append("FROM ").append(CAMERA_TABLE).append(" c ")
+                .append("JOIN route_segments r ")
+                .append("ON ST_DWithin(c.geom::geography, r.geog, ?) ")
+                .append("WHERE c.sbbm IS NOT NULL ")
+                .append("AND c.geom IS NOT NULL ")
+                .append("AND NOT ST_IsEmpty(c.geom) ")
+                .append("AND ST_SRID(c.geom) = 4326 ")
+                .append("AND GeometryType(c.geom) = 'POINT' ")
+                .append("), deduplicated AS ( ")
+                .append("SELECT DISTINCT ON (sbbm) ")
+                .append("sbbm, sbmc, sbcs, x, y, xzqbm, xzqmc, ")
+                .append("pcsbm, pcsmc, distance_m ")
+                .append("FROM candidates ")
+                .append("ORDER BY sbbm, distance_m ")
+                .append("), total AS ( ")
+                .append("SELECT COUNT(*) AS total_count FROM deduplicated ")
+                .append("), paged AS ( ")
+                .append("SELECT * FROM deduplicated ")
+                .append("ORDER BY distance_m ASC, sbbm ASC LIMIT ? OFFSET ? ")
+                .append(") ")
+                .append("SELECT p.sbbm, p.sbmc, p.sbcs, p.x, p.y, p.xzqbm, p.xzqmc, ")
+                .append("p.pcsbm, p.pcsmc, ")
+                .append("ROUND(p.distance_m::numeric, 2) AS distance, ")
+                .append("t.total_count ")
+                .append("FROM total t LEFT JOIN paged p ON TRUE ")
+                .append("ORDER BY p.distance_m ASC NULLS LAST, p.sbbm ASC NULLS LAST");
+        return sql.toString();
+    }
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -104,18 +105,25 @@ public class CameraRepository {
         log.debug("event=route.camera.sql.page sql={}", PAGE_SQL);
         log.debug(
                 "event=route.camera.sql.page.params param1_routeWkts={} param2_bufferMeters={} "
-                        + "param3_bufferMeters={} param4_pageSize={} param5_offset={} queryTimeoutSeconds={}",
-                routeWkts, bufferMeters, bufferMeters, pageSize, offset, queryTimeoutSeconds
+                        + "param3_pageSize={} param4_offset={} queryTimeoutSeconds={}",
+                routeWkts, bufferMeters, pageSize, offset, queryTimeoutSeconds
         );
 
         ResultSetExtractor<PageResult<CameraResponse>> pageExtractor =
                 resultSet -> extractPage(resultSet, pageNum, pageSize);
-        PageResult<CameraResponse> page = jdbcTemplate.query(
-                connection -> createStatement(
-                        connection, PAGE_SQL, routeWkts, bufferMeters, pageSize, offset
-                ),
-                pageExtractor
-        );
+        final Array[] sqlArray = new Array[1];
+        PageResult<CameraResponse> page;
+        try {
+            page = jdbcTemplate.query(
+                    connection -> createStatement(
+                            connection, PAGE_SQL, routeWkts, bufferMeters,
+                            pageSize, offset, sqlArray
+                    ),
+                    pageExtractor
+            );
+        } finally {
+            freeSqlArray(sqlArray[0]);
+        }
 
         log.info(
                 "event=route.camera.database_query.completed resultCount={} total={} durationMs={}",
@@ -163,21 +171,40 @@ public class CameraRepository {
             List<String> routeWkts,
             int bufferMeters,
             Integer pageSize,
-            Long offset
+            Long offset,
+            Array[] sqlArray
     ) throws SQLException {
         PreparedStatement statement = connection.prepareStatement(sql);
-        Array segments = connection.createArrayOf(
-                "text", routeWkts.toArray(new String[0])
-        );
-        statement.setArray(1, segments);
-        statement.setInt(2, bufferMeters);
-        statement.setQueryTimeout(queryTimeoutSeconds);
-
-        if (pageSize != null && offset != null) {
-            statement.setInt(3, pageSize);
-            statement.setLong(4, offset);
+        try {
+            sqlArray[0] = connection.createArrayOf(
+                    "text", routeWkts.toArray(new String[0])
+            );
+            statement.setArray(1, sqlArray[0]);
+            statement.setInt(2, bufferMeters);
+            statement.setQueryTimeout(queryTimeoutSeconds);
+            if (pageSize != null && offset != null) {
+                statement.setInt(3, pageSize);
+                statement.setLong(4, offset);
+            }
+            return statement;
+        } catch (SQLException | RuntimeException ex) {
+            try {
+                statement.close();
+            } catch (SQLException closeException) {
+                ex.addSuppressed(closeException);
+            }
+            throw ex;
         }
+    }
 
-        return statement;
+    private void freeSqlArray(Array sqlArray) {
+        if (sqlArray == null) {
+            return;
+        }
+        try {
+            sqlArray.free();
+        } catch (SQLException ex) {
+            log.warn("event=route.camera.sql_array.release_failed", ex);
+        }
     }
 }

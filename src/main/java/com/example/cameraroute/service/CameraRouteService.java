@@ -4,6 +4,7 @@ import com.example.cameraroute.dto.PageResult;
 import com.example.cameraroute.dto.CameraResponse;
 import com.example.cameraroute.dto.RouteCameraRequest;
 import com.example.cameraroute.geo.CoordinateConverter;
+import com.example.cameraroute.geo.CoordinateType;
 import com.example.cameraroute.geo.RouteSegmenter;
 import com.example.cameraroute.repository.CameraRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 @Slf4j
 @Service
@@ -43,7 +43,7 @@ public class CameraRouteService {
         int coordinateCount = request == null || request.getGeometry() == null
                 || request.getGeometry().getCoordinates() == null
                 ? 0 : request.getGeometry().getCoordinates().size();
-        String coordinateType = request == null ? null : request.getType();
+        CoordinateType coordinateType = request == null ? null : request.getType();
 
         log.info(
                 "event=route.camera.query.started coordinateType={} coordinateCount={} pageNum={} pageSize={}",
@@ -78,13 +78,9 @@ public class CameraRouteService {
     private PreparedRoute prepare(RouteCameraRequest request) {
         validateCoordinates(request);
 
-        String type = request.getType() == null || request.getType().trim().isEmpty()
-                ? "WGS84" : request.getType().trim().toUpperCase(Locale.ROOT);
-        if ("GCJ_02".equals(type) || "GCJ02".equals(type)) {
-            type = "GCJ-02";
-        }
-        if (!"WGS84".equals(type) && !"GCJ-02".equals(type)) {
-            throw new IllegalArgumentException("type 仅支持 WGS84 或 GCJ-02");
+        CoordinateType type = request.getType();
+        if (type == null) {
+            throw new IllegalArgumentException("type 不能为空，且仅支持 WGS84 或 GCJ-02");
         }
 
         int buffer = request.getBufferDistance() == null

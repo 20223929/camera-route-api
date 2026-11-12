@@ -22,6 +22,7 @@ class RequestLoggingFilterTest {
         request.addHeader("X-Request-Id", "request-123");
         request.addHeader("X-Trace-Id", "trace-456");
         MockHttpServletResponse response = new MockHttpServletResponse();
+        MDC.put("unrelated_stale_key", "stale-value");
 
         filter.doFilter(request, response, new MockFilterChain());
 
@@ -29,6 +30,7 @@ class RequestLoggingFilterTest {
         assertEquals("trace-456", response.getHeader("X-Trace-Id"));
         assertNull(MDC.get("request_id"));
         assertNull(MDC.get("trace_id"));
+        assertNull(MDC.get("unrelated_stale_key"));
     }
 
     @Test

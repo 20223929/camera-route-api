@@ -2,7 +2,8 @@ package com.example.cameraroute.geo;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * Splits a route into overlapping-endpoint LineStrings no longer than the configured length.
@@ -104,15 +105,18 @@ public final class RouteSegmenter {
             }
 
             CoordinateConverter.Point point = points.get(i);
-            wkt.append(String.format(
-                    Locale.US,
-                    "%.8f %.8f",
-                    point.getLongitude(),
-                    point.getLatitude()
-            ));
+            wkt.append(formatCoordinate(point.getLongitude()))
+                    .append(' ')
+                    .append(formatCoordinate(point.getLatitude()));
         }
 
         return wkt.append(')').toString();
+    }
+
+    private static String formatCoordinate(double value) {
+        return BigDecimal.valueOf(value)
+                .setScale(8, RoundingMode.HALF_UP)
+                .toPlainString();
     }
 
     private static CoordinateConverter.Point interpolate(

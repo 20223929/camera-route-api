@@ -15,12 +15,12 @@ public final class CoordinateConverter {
     private CoordinateConverter() {
     }
 
-    public static Point toWgs84(double longitude, double latitude, String type) {
-        if ("WGS84".equals(type)) {
+    public static Point toWgs84(double longitude, double latitude, CoordinateType type) {
+        if (CoordinateType.WGS84 == type) {
             return new Point(longitude, latitude);
         }
 
-        if (!"GCJ-02".equals(type)) {
+        if (CoordinateType.GCJ_02 != type) {
             throw new IllegalArgumentException("type 仅支持 WGS84 或 GCJ-02");
         }
 

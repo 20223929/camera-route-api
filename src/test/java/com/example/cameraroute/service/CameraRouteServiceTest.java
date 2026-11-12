@@ -4,6 +4,7 @@ import com.example.cameraroute.dto.PageResult;
 import com.example.cameraroute.dto.CameraResponse;
 import com.example.cameraroute.dto.RouteCameraRequest;
 import com.example.cameraroute.repository.CameraRepository;
+import com.example.cameraroute.geo.CoordinateType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -100,6 +101,15 @@ class CameraRouteServiceTest {
     }
 
     @Test
+    void acceptsOnlyDeclaredCoordinateTypeValues() {
+        assertEquals(CoordinateType.WGS84, CoordinateType.fromValue("WGS84"));
+        assertEquals(CoordinateType.GCJ_02, CoordinateType.fromValue("GCJ-02"));
+        assertEquals(CoordinateType.GCJ_02, CoordinateType.fromValue("gcj_02"));
+        assertThrows(IllegalArgumentException.class,
+                () -> CoordinateType.fromValue("BD-09"));
+    }
+
+    @Test
     void rejectsUnsupportedCoordinateSystem() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -191,7 +201,7 @@ class CameraRouteServiceTest {
 
     private RouteCameraRequest request(String type, Integer buffer) {
         RouteCameraRequest request = new RouteCameraRequest();
-        request.setType(type);
+        request.setType(CoordinateType.fromValue(type));
         request.setBufferDistance(buffer);
         request.setGeometry(geometry(
                 "LineString",
