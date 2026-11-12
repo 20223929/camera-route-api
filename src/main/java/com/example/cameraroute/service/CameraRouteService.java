@@ -99,24 +99,12 @@ public class CameraRouteService {
             ));
         }
 
-        double length = RouteSegmenter.routeLengthMeters(wgs84);
-        if (length > maxRouteLengthMeters) {
-            throw new IllegalArgumentException(
-                    "路线长度超过 " + Math.round(maxRouteLengthMeters / 1000.0)
-                            + " 公里，请拆分路线后查询"
-            );
-        }
-
-        List<String> segments = RouteSegmenter.toWktSegments(
-                wgs84, segmentLengthMeters
+        RouteSegmenter.SegmentationResult segmentation = RouteSegmenter.segment(
+                wgs84, segmentLengthMeters, maxRouteLengthMeters, 500
         );
-        if (segments.size() > 500) {
-            throw new IllegalArgumentException(
-                    "路线分段数量超过 500，请拆分路线后查询"
-            );
-        }
-
-        return new PreparedRoute(segments, buffer, length);
+        return new PreparedRoute(
+                segmentation.getSegmentWkts(), buffer, segmentation.getRouteLengthMeters()
+        );
     }
 
     private void validatePage(int pageNum, int pageSize) {
