@@ -104,6 +104,20 @@ class RouteSegmenterTest {
                         -1.0d
                 )
         );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> RouteSegmenter.toWktSegments(
+                        Arrays.asList(point(0.0, 0.0), point(0.01, 0.0)),
+                        Double.NaN
+                )
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> RouteSegmenter.toWktSegments(
+                        Arrays.asList(point(0.0, 0.0), point(0.01, 0.0)),
+                        Double.POSITIVE_INFINITY
+                )
+        );
     }
 
     @Test
