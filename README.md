@@ -72,7 +72,9 @@
 |---|---|---|---|
 | `type` | String | `WGS84` | 坐标系：`WGS84` / `GCJ-02` |
 | `bufferDistance` | Integer | 100 | 路线两侧搜索距离，单位米，最大 10000 |
-| `geometry` | Object | 必填 | GeoJSON Geometry，目前仅支持 `LineString` |\n| `geometry.type` | String | `LineString` | 几何类型 |\n| `geometry.coordinates` | Array | 必填 | 至少两个二维坐标点，每个点为 `[longitude, latitude]` |
+| `geometry` | Object | 必填 | GeoJSON Geometry，目前仅支持 `LineString` |
+| `geometry.type` | String | `LineString` | 几何类型 |
+| `geometry.coordinates` | Array | 必填 | 至少两个二维坐标点，每个点为 `[longitude, latitude]` |
 | `pageNum` | Integer | 1 | URL 查询参数，页码从 1 开始 |
 | `pageSize` | Integer | 500 | URL 查询参数，每页数量最大 1000 |
 
@@ -111,7 +113,8 @@
 - `pageNum` 必须大于等于 1。
 - `pageSize` 必须在 1 至 1000 之间。
 - `bufferDistance` 必须在 0 至最大缓冲距离之间。
-- 请求路线使用 GeoJSON `LineString`；坐标顺序为 `[longitude, latitude]`，当前仅接受二维坐标。\n- 路线至少包含两个有效坐标点。
+- 请求路线使用 GeoJSON `LineString`；坐标顺序为 `[longitude, latitude]`，当前仅接受二维坐标。
+- 路线至少包含两个有效坐标点。
 - 路线长度默认不超过 5000 公里。
 - 分段长度默认约 10 公里，分段数量最多 500。
 
