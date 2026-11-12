@@ -10,6 +10,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -30,6 +31,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         String requestId = resolveId(request.getHeader(REQUEST_ID_HEADER));
         String traceId = resolveId(request.getHeader(TRACE_ID_HEADER));
         long startedAt = System.nanoTime();
+        Map<String, String> previousMdcContext = MDC.getCopyOfContextMap();
 
         MDC.put("request_id", requestId);
         MDC.put("trace_id", traceId);
@@ -42,12 +44,19 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, response);
         } finally {
-            log.info(
-                    "event=http.request.completed method={} path={} status={} durationMs={}",
-                    request.getMethod(), request.getRequestURI(), response.getStatus(),
-                    (System.nanoTime() - startedAt) / 1_000_000L
-            );
-            MDC.clear();
+            try {
+                log.info(
+                        "event=http.request.completed method={} path={} status={} durationMs={}",
+                        request.getMethod(), request.getRequestURI(), response.getStatus(),
+                        (System.nanoTime() - startedAt) / 1_000_000L
+                );
+            } finally {
+                if (previousMdcContext == null || previousMdcContext.isEmpty()) {
+                    MDC.clear();
+                } else {
+                    MDC.setContextMap(previousMdcContext);
+                }
+            }
         }
     }
 
