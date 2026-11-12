@@ -128,13 +128,13 @@
         <div class="field">
             <div class="field-head">
                 <label for="coordinates">路线坐标</label>
-                <span class="hint">每行一个点：经度,纬度</span>
+                <span class="hint">每行一个点：经度,纬度（GeoJSON 顺序）</span>
             </div>
             <textarea id="coordinates" spellcheck="false">113.264385,23.129112
 113.270000,23.132000
 113.278000,23.136000
 113.286000,23.140000</textarea>
-            <div class="hint" style="margin-top:6px">支持多个途经点；也可以直接在地图上点击添加路线点。</div>
+            <div class="hint" style="margin-top:6px">支持多个途经点；也可以直接在地图上点击添加路线点。请求时自动封装为 GeoJSON LineString。</div>
         </div>
 
         <div class="row-fields">
@@ -380,7 +380,10 @@
                     body: JSON.stringify({
                         type: $("coordType").value,
                         bufferDistance: bufferDistance,
-                        coordinates: coordinates.map(point => ({ longitude: point[0], latitude: point[1] }))
+                        geometry: {
+                            type: "LineString",
+                            coordinates: coordinates
+                        }
                     })
                 });
                 const result = await response.json();
