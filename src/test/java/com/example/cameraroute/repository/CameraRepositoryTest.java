@@ -17,8 +17,6 @@ import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -67,12 +65,18 @@ class CameraRepositoryTest {
 
         assertEquals(12L, page.getTotal());
         assertEquals(1, page.getData().size());
-        verify(connection).prepareStatement(anyString());
+        verify(connection).prepareStatement(org.mockito.ArgumentMatchers.argThat(sql ->
+                sql.contains("c.geom && r.search_bbox")
+                        && sql.contains("ST_Buffer(geom::geography")
+                        && sql.contains("ST_DWithin(c.geom::geography")
+                        && sql.contains("LEFT JOIN paged")
+        ));
         verify(connection).createArrayOf(eq("text"), any(String[].class));
         verify(statement).setArray(1, sqlArray);
         verify(statement).setInt(2, 250);
-        verify(statement).setInt(3, 25);
-        verify(statement).setLong(4, 50L);
+        verify(statement).setInt(3, 250);
+        verify(statement).setInt(4, 25);
+        verify(statement).setLong(5, 50L);
         verify(statement).setQueryTimeout(17);
     }
 
@@ -94,29 +98,18 @@ class CameraRepositoryTest {
     }
 
     @Test
-    void runsCountFallbackWhenRequestedPageHasNoRows() throws Exception {
-        PreparedStatement pageStatement = mock(PreparedStatement.class);
-        PreparedStatement countStatement = mock(PreparedStatement.class);
-        when(connection.prepareStatement(anyString()))
-                .thenReturn(pageStatement, countStatement);
+    void returnsTotalForAnEmptyOrOutOfRangePageInOneQuery() throws Exception {
+        PreparedStatement statement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(anyString())).thenReturn(statement);
 
-        when(jdbcTemplate.query(
+        doAnswer(invocation -> {
+            PreparedStatementCreator creator = invocation.getArgument(0);
+            creator.createPreparedStatement(connection);
+            return PageResult.of(42L, 99, 20, Collections.<CameraResponse>emptyList());
+        }).when(jdbcTemplate).query(
                 any(PreparedStatementCreator.class),
-                any(ResultSetExtractor.class)
-        )).thenAnswer(new org.mockito.stubbing.Answer<Object>() {
-            private int invocationCount;
-
-            @Override
-            public Object answer(org.mockito.invocation.InvocationOnMock invocation)
-                    throws Throwable {
-                PreparedStatementCreator creator = invocation.getArgument(0);
-                creator.createPreparedStatement(connection);
-                invocationCount++;
-                return invocationCount == 1
-                        ? PageResult.empty(99, 20)
-                        : Long.valueOf(42L);
-            }
-        });
+                org.mockito.ArgumentMatchers.<ResultSetExtractor<PageResult<CameraResponse>>>any()
+        );
 
         PageResult<CameraResponse> page = repository.findCamerasNearRoute(
                 Arrays.asList("LINESTRING(113 23,113.01 23)"),
@@ -127,11 +120,13 @@ class CameraRepositoryTest {
 
         assertEquals(42L, page.getTotal());
         assertEquals(0, page.getData().size());
-        verify(pageStatement).setInt(3, 20);
-        verify(pageStatement).setLong(4, 1960L);
-        verify(countStatement, never()).setInt(eq(3), anyInt());
-        verify(countStatement, never()).setLong(eq(4), anyLong());
-        verify(pageStatement).setQueryTimeout(17);
-        verify(countStatement).setQueryTimeout(17);
+        verify(connection).prepareStatement(anyString());
+        verify(statement).setInt(4, 20);
+        verify(statement).setLong(5, 1960L);
+        verify(statement).setQueryTimeout(17);
+        verify(jdbcTemplate, org.mockito.Mockito.times(1)).query(
+                any(PreparedStatementCreator.class),
+                any(ResultSetExtractor.class)
+        );
     }
 }

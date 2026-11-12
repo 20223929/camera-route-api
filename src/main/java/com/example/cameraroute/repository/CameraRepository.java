@@ -30,17 +30,26 @@ public class CameraRepository {
      */
     private static final String CAMERA_TABLE = "public.ga_yjyd_camera";
 
+    /**
+     * 先用 geography 缓冲区生成 geometry 包围盒，借助 geom 上已有的 GiST 索引
+     * 缩小候选集；随后仍使用 geography ST_DWithin 做精确的米制距离判断。
+     */
     private static final String ROUTE_CTE =
-            "WITH route_segments AS ( "
-                    + "SELECT ST_GeomFromText(wkt, 4326)::geography AS geog "
+            "WITH route_geometries AS ( "
+                    + "SELECT ST_GeomFromText(wkt, 4326) AS geom "
                     + "FROM unnest(?::text[]) AS routes(wkt) "
+                    + "), route_segments AS ( "
+                    + "SELECT geom, geom::geography AS geog, "
+                    + "ST_Envelope(ST_Buffer(geom::geography, ?)::geometry) AS search_bbox "
+                    + "FROM route_geometries "
                     + "), candidates AS ( "
                     + "SELECT c.sbbm, c.sbmc, c.sbcs, c.x, c.y, c.xzqbm, c.xzqmc, "
                     + "c.pcsbm, c.pcsmc, "
                     + "ST_Distance(c.geom::geography, r.geog) AS distance_m "
                     + "FROM " + CAMERA_TABLE + " c "
                     + "JOIN route_segments r "
-                    + "ON ST_DWithin(c.geom::geography, r.geog, ?) "
+                    + "ON c.geom && r.search_bbox "
+                    + "AND ST_DWithin(c.geom::geography, r.geog, ?) "
                     + "WHERE c.sbbm IS NOT NULL "
                     + "AND c.geom IS NOT NULL "
                     + "AND NOT ST_IsEmpty(c.geom) "
@@ -52,19 +61,21 @@ public class CameraRepository {
                     + "pcsbm, pcsmc, distance_m "
                     + "FROM candidates "
                     + "ORDER BY sbbm, distance_m "
+                    + "), total AS ( "
+                    + "SELECT COUNT(*) AS total_count FROM deduplicated "
+                    + "), paged AS ( "
+                    + "SELECT * FROM deduplicated "
+                    + "ORDER BY distance_m ASC, sbbm ASC LIMIT ? OFFSET ? "
                     + ") ";
-
-    private static final String COUNT_SQL =
-            ROUTE_CTE + "SELECT COUNT(*) FROM deduplicated";
 
     private static final String PAGE_SQL =
             ROUTE_CTE
-                    + "SELECT sbbm, sbmc, sbcs, x, y, xzqbm, xzqmc, "
-                    + "pcsbm, pcsmc, "
-                    + "ROUND(distance_m::numeric, 2) AS distance, "
-                    + "COUNT(*) OVER() AS total_count "
-                    + "FROM deduplicated "
-                    + "ORDER BY distance_m ASC, sbbm ASC LIMIT ? OFFSET ?";
+                    + "SELECT p.sbbm, p.sbmc, p.sbcs, p.x, p.y, p.xzqbm, p.xzqmc, "
+                    + "p.pcsbm, p.pcsmc, "
+                    + "ROUND(p.distance_m::numeric, 2) AS distance, "
+                    + "t.total_count "
+                    + "FROM total t LEFT JOIN paged p ON TRUE "
+                    + "ORDER BY p.distance_m ASC NULLS LAST, p.sbbm ASC NULLS LAST";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -95,8 +106,8 @@ public class CameraRepository {
         log.debug("event=route.camera.sql.page sql={}", PAGE_SQL);
         log.debug(
                 "event=route.camera.sql.page.params param1_routeWkts={} param2_bufferMeters={} "
-                        + "param3_pageSize={} param4_offset={} queryTimeoutSeconds={}",
-                routeWkts, bufferMeters, pageSize, offset, queryTimeoutSeconds
+                        + "param3_bufferMeters={} param4_pageSize={} param5_offset={} queryTimeoutSeconds={}",
+                routeWkts, bufferMeters, bufferMeters, pageSize, offset, queryTimeoutSeconds
         );
 
         ResultSetExtractor<PageResult<CameraResponse>> pageExtractor =
@@ -108,32 +119,9 @@ public class CameraRepository {
                 pageExtractor
         );
 
-        boolean countFallback = false;
-        if (page.getData().isEmpty()) {
-            // An out-of-range page has no row carrying COUNT(*) OVER(); query the total separately.
-            countFallback = true;
-            log.debug("event=route.camera.sql.count sql={}", COUNT_SQL);
-            // TEMPORARY: emit PostgreSQL-ready bind values for local SQL verification.
-            log.debug(
-                    "event=route.camera.sql.count.params param1_routeWkts={} param2_bufferMeters={} "
-                            + "queryTimeoutSeconds={}",
-                    routeWkts, bufferMeters, queryTimeoutSeconds
-            );
-            ResultSetExtractor<Long> countExtractor =
-                    resultSet -> resultSet.next() ? resultSet.getLong(1) : 0L;
-            Long count = jdbcTemplate.query(
-                    connection -> createStatement(
-                            connection, COUNT_SQL, routeWkts, bufferMeters, null, null
-                    ),
-                    countExtractor
-            );
-            page = PageResult.of(count == null ? 0L : count, pageNum, pageSize, page.getData());
-        }
-
         log.info(
-                "event=route.camera.database_query.completed resultCount={} total={} "
-                        + "countFallback={} durationMs={}",
-                page.getData().size(), page.getTotal(), countFallback,
+                "event=route.camera.database_query.completed resultCount={} total={} durationMs={}",
+                page.getData().size(), page.getTotal(),
                 (System.nanoTime() - startedAt) / 1_000_000L
         );
         return page;
@@ -147,8 +135,13 @@ public class CameraRepository {
 
         while (resultSet.next()) {
             total = resultSet.getLong("total_count");
+            String sbbm = resultSet.getString("sbbm");
+            // total LEFT JOIN paged returns one sentinel row when the page is empty.
+            if (sbbm == null) {
+                continue;
+            }
             data.add(new CameraResponse(
-                    resultSet.getString("sbbm"),
+                    sbbm,
                     resultSet.getString("sbmc"),
                     resultSet.getString("sbcs"),
                     resultSet.getObject("x") == null
@@ -180,11 +173,12 @@ public class CameraRepository {
         );
         statement.setArray(1, segments);
         statement.setInt(2, bufferMeters);
+        statement.setInt(3, bufferMeters);
         statement.setQueryTimeout(queryTimeoutSeconds);
 
         if (pageSize != null && offset != null) {
-            statement.setInt(3, pageSize);
-            statement.setLong(4, offset);
+            statement.setInt(4, pageSize);
+            statement.setLong(5, offset);
         }
 
         return statement;
