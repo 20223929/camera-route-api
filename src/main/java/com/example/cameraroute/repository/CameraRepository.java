@@ -31,16 +31,15 @@ public class CameraRepository {
     private static final String CAMERA_TABLE = "public.ga_yjyd_camera";
 
     /**
-     * 先用 geography 缓冲区生成 geometry 包围盒，借助 geom 上已有的 GiST 索引
-     * 缩小候选集；随后仍使用 geography ST_DWithin 做精确的米制距离判断。
+     * 使用 geom::geography 表达式匹配现有 geography GiST 索引，
+     * 由 ST_DWithin 完成空间索引候选筛选和精确的米制距离判断。
      */
     private static final String ROUTE_CTE =
             "WITH route_geometries AS ( "
                     + "SELECT ST_GeomFromText(wkt, 4326) AS geom "
                     + "FROM unnest(?::text[]) AS routes(wkt) "
                     + "), route_segments AS ( "
-                    + "SELECT geom, geom::geography AS geog, "
-                    + "ST_Envelope(ST_Buffer(geom::geography, ?)::geometry) AS search_bbox "
+                    + "SELECT geom::geography AS geog "
                     + "FROM route_geometries "
                     + "), candidates AS ( "
                     + "SELECT c.sbbm, c.sbmc, c.sbcs, c.x, c.y, c.xzqbm, c.xzqmc, "
@@ -48,8 +47,7 @@ public class CameraRepository {
                     + "ST_Distance(c.geom::geography, r.geog) AS distance_m "
                     + "FROM " + CAMERA_TABLE + " c "
                     + "JOIN route_segments r "
-                    + "ON c.geom && r.search_bbox "
-                    + "AND ST_DWithin(c.geom::geography, r.geog, ?) "
+                    + "ON ST_DWithin(c.geom::geography, r.geog, ?) "
                     + "WHERE c.sbbm IS NOT NULL "
                     + "AND c.geom IS NOT NULL "
                     + "AND NOT ST_IsEmpty(c.geom) "
@@ -173,12 +171,11 @@ public class CameraRepository {
         );
         statement.setArray(1, segments);
         statement.setInt(2, bufferMeters);
-        statement.setInt(3, bufferMeters);
         statement.setQueryTimeout(queryTimeoutSeconds);
 
         if (pageSize != null && offset != null) {
-            statement.setInt(4, pageSize);
-            statement.setLong(5, offset);
+            statement.setInt(3, pageSize);
+            statement.setLong(4, offset);
         }
 
         return statement;

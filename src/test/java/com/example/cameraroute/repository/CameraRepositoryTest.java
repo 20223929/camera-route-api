@@ -66,17 +66,16 @@ class CameraRepositoryTest {
         assertEquals(12L, page.getTotal());
         assertEquals(1, page.getData().size());
         verify(connection).prepareStatement(org.mockito.ArgumentMatchers.argThat(sql ->
-                sql.contains("c.geom && r.search_bbox")
-                        && sql.contains("ST_Buffer(geom::geography")
-                        && sql.contains("ST_DWithin(c.geom::geography")
+                sql.contains("ST_DWithin(c.geom::geography, r.geog, ?)")
                         && sql.contains("LEFT JOIN paged")
+                        && !sql.contains("search_bbox")
+                        && !sql.contains("ST_Buffer")
         ));
         verify(connection).createArrayOf(eq("text"), any(String[].class));
         verify(statement).setArray(1, sqlArray);
         verify(statement).setInt(2, 250);
-        verify(statement).setInt(3, 250);
-        verify(statement).setInt(4, 25);
-        verify(statement).setLong(5, 50L);
+        verify(statement).setInt(3, 25);
+        verify(statement).setLong(4, 50L);
         verify(statement).setQueryTimeout(17);
     }
 
@@ -121,8 +120,8 @@ class CameraRepositoryTest {
         assertEquals(42L, page.getTotal());
         assertEquals(0, page.getData().size());
         verify(connection).prepareStatement(anyString());
-        verify(statement).setInt(4, 20);
-        verify(statement).setLong(5, 1960L);
+        verify(statement).setInt(3, 20);
+        verify(statement).setLong(4, 1960L);
         verify(statement).setQueryTimeout(17);
         verify(jdbcTemplate, org.mockito.Mockito.times(1)).query(
                 any(PreparedStatementCreator.class),
