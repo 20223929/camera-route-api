@@ -365,7 +365,12 @@
             $("searchBtn").disabled = true;
             $("prevPage").disabled = true;
             $("nextPage").disabled = true;
+            $("resetBtn").disabled = true;
+            $("clearPoints").disabled = true;
             $("searchBtn").textContent = "正在查询…";
+            renderCameras([]);
+            $("totalCount").textContent = "—";
+            $("currentCount").textContent = "0";
             try {
                 coordinates = parseCoordinates();
                 const bufferDistance = Number($("buffer").value);
@@ -432,6 +437,8 @@
                 $("searchBtn").textContent = "⌕　查询沿途摄像头";
                 $("prevPage").disabled = currentPage <= 1 || total === 0;
                 $("nextPage").disabled = currentPage * pageSize >= total;
+                $("resetBtn").disabled = false;
+                $("clearPoints").disabled = false;
             }
         }
 
@@ -463,6 +470,7 @@
         });
 
         map.on("click", event => {
+            if (isSearching) return;
             const point = [Number(event.latlng.lng.toFixed(6)), Number(event.latlng.lat.toFixed(6))];
             routePoints.push(point);
             $("coordinates").value = routePoints.map(item => item.join(",")).join("\n");
