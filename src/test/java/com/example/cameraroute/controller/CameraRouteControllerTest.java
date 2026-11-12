@@ -1,6 +1,7 @@
 package com.example.cameraroute.controller;
 
 import com.example.cameraroute.dto.PageResult;
+import com.example.cameraroute.dto.Resp;
 import com.example.cameraroute.dto.CameraResponse;
 import com.example.cameraroute.dto.RouteCameraRequest;
 import com.example.cameraroute.service.CameraRouteService;
@@ -27,20 +28,23 @@ class CameraRouteControllerTest {
     }
 
     @Test
-    void returnsPageResultWithoutCodeField() {
+    void returnsRespContainingPageResult() {
         RouteCameraRequest request = new RouteCameraRequest();
         List<CameraResponse> data = Collections.nCopies(280, mock(CameraResponse.class));
         PageResult<CameraResponse> page = PageResult.of(1280L, 3, 500, data);
         when(service.findCameras(request, 3, 500)).thenReturn(page);
 
-        PageResult<CameraResponse> response = controller.getRouteCameras(request, 3, 500);
+        Resp<PageResult<CameraResponse>> response =
+                controller.getRouteCameras(request, 3, 500);
 
-        assertEquals(1280L, response.getTotal());
-        assertEquals(3, response.getPageNum());
-        assertEquals(500, response.getPageSize());
-        assertEquals(280, response.getCurrentCount());
-        assertEquals(3L, response.getTotalPages());
-        assertSame(page, response);
+        assertEquals(200, response.getCode());
+        assertEquals("success", response.getMsg());
+        assertSame(page, response.getData());
+        assertEquals(1280L, response.getData().getTotal());
+        assertEquals(3, response.getData().getPageNum());
+        assertEquals(500, response.getData().getPageSize());
+        assertEquals(280, response.getData().getCurrentCount());
+        assertEquals(3L, response.getData().getTotalPages());
         verify(service).findCameras(request, 3, 500);
     }
 
