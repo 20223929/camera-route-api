@@ -188,6 +188,14 @@ class RouteSegmenterTest {
         assertTrue(segments.get(0).contains("113.12345679 23.12345679"));
     }
 
+    @Test
+    void gcj02ReverseConversionRetainsExpectedPrecision() {
+        CoordinateConverter.Point converted =
+                CoordinateConverter.toWgs84(116.404, 39.915, CoordinateType.GCJ_02);
+        assertEquals(116.397755, converted.getLongitude(), 0.00001);
+        assertEquals(39.908, converted.getLatitude(), 0.00001);
+    }
+
     private static CoordinateConverter.Point point(double longitude, double latitude) {
         return new CoordinateConverter.Point(longitude, latitude);
     }

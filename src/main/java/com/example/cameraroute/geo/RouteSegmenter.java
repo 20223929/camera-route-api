@@ -63,7 +63,8 @@ public final class RouteSegmenter {
             double edgeLength = distance(start, end);
             totalLength += edgeLength;
             if (totalLength > maxRouteLengthMeters) {
-                throw new IllegalArgumentException("路线长度超过限制，请拆分路线后查询");
+                throw new IllegalArgumentException("路线长度超过 " + Math.round(maxRouteLengthMeters / 1000.0)
+                        + " 公里，请拆分路线后查询");
             }
             if (edgeLength == 0) continue;
 
