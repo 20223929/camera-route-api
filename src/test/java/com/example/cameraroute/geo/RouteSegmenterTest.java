@@ -193,7 +193,7 @@ class RouteSegmenterTest {
         CoordinateConverter.Point converted =
                 CoordinateConverter.toWgs84(116.404, 39.915, CoordinateType.GCJ_02);
         assertEquals(116.397755, converted.getLongitude(), 0.00001);
-        assertEquals(39.908, converted.getLatitude(), 0.00001);
+        assertEquals(39.913596, converted.getLatitude(), 0.00001);
     }
 
     private static CoordinateConverter.Point point(double longitude, double latitude) {
