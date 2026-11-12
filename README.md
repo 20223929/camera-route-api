@@ -78,12 +78,10 @@
 | `pageNum` | Integer | 1 | URL 查询参数，页码从 1 开始 |
 | `pageSize` | Integer | 500 | URL 查询参数，每页数量最大 1000 |
 
-短路线和长路线使用同一个接口，同步等待查询完成后返回分页结果。响应保持统一数组结构：
+短路线和长路线使用同一个接口，同步等待查询完成后返回分页结果。成功响应统一使用 `PageResult<T>` 分页结构，不包含业务 `code` 或 `message` 字段：
 
 ```json
 {
-  "code": 200,
-  "message": "success",
   "total": 1280,
   "pageNum": 1,
   "pageSize": 500,
@@ -149,6 +147,8 @@ camera:
 - 参数错误以 WARN 记录，未处理异常以 ERROR 记录并保留异常堆栈。
 
 排查请求时，可使用响应头中的 `X-Request-Id` 或 `X-Trace-Id` 搜索对应日志。
+
+参数校验失败返回 HTTP 400，服务器异常返回 HTTP 500，错误响应仅包含 `message`，不再使用业务 `code` 字段。
 
 ## 7. 构建与运行
 

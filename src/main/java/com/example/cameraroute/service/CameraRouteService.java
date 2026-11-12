@@ -1,6 +1,7 @@
 package com.example.cameraroute.service;
 
-import com.example.cameraroute.dto.CameraPage;
+import com.example.cameraroute.dto.PageResult;
+import com.example.cameraroute.dto.CameraResponse;
 import com.example.cameraroute.dto.RouteCameraRequest;
 import com.example.cameraroute.geo.CoordinateConverter;
 import com.example.cameraroute.geo.RouteSegmenter;
@@ -33,7 +34,7 @@ public class CameraRouteService {
     @org.springframework.beans.factory.annotation.Value("${camera.search.max-route-length-meters:5000000}")
     private double maxRouteLengthMeters;
 
-    public CameraPage findCameras(
+    public PageResult<CameraResponse> findCameras(
             RouteCameraRequest request,
             int pageNum,
             int pageSize
@@ -59,7 +60,7 @@ public class CameraRouteService {
                 prepared.getSegmentWkts().size(), prepared.getBufferMeters(), pageNum, pageSize
         );
 
-        CameraPage page = repository.findCamerasNearRoute(
+        PageResult<CameraResponse> page = repository.findCamerasNearRoute(
                 prepared.getSegmentWkts(),
                 prepared.getBufferMeters(),
                 pageNum,

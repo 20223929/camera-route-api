@@ -1,6 +1,6 @@
 package com.example.cameraroute.repository;
 
-import com.example.cameraroute.dto.CameraPage;
+import com.example.cameraroute.dto.PageResult;
 import com.example.cameraroute.dto.CameraResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -72,7 +72,7 @@ public class CameraRepository {
     private int queryTimeoutSeconds;
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    public CameraPage findCamerasNearRoute(
+    public PageResult<CameraResponse> findCamerasNearRoute(
             List<String> routeWkts,
             int bufferMeters,
             int pageNum,
@@ -80,7 +80,7 @@ public class CameraRepository {
     ) {
         if (routeWkts == null || routeWkts.isEmpty()) {
             log.warn("event=route.camera.query.skipped reason=empty_route_segments");
-            return new CameraPage(0, Collections.<CameraResponse>emptyList());
+            return PageResult.empty(pageNum, pageSize);
         }
 
         long startedAt = System.nanoTime();
@@ -99,8 +99,9 @@ public class CameraRepository {
                 routeWkts, bufferMeters, pageSize, offset, queryTimeoutSeconds
         );
 
-        ResultSetExtractor<CameraPage> pageExtractor = this::extractPage;
-        CameraPage page = jdbcTemplate.query(
+        ResultSetExtractor<PageResult<CameraResponse>> pageExtractor =
+                resultSet -> extractPage(resultSet, pageNum, pageSize);
+        PageResult<CameraResponse> page = jdbcTemplate.query(
                 connection -> createStatement(
                         connection, PAGE_SQL, routeWkts, bufferMeters, pageSize, offset
                 ),
@@ -126,7 +127,7 @@ public class CameraRepository {
                     ),
                     countExtractor
             );
-            page = new CameraPage(count == null ? 0L : count, page.getData());
+            page = PageResult.of(count == null ? 0L : count, pageNum, pageSize, page.getData());
         }
 
         log.info(
@@ -138,7 +139,9 @@ public class CameraRepository {
         return page;
     }
 
-    private CameraPage extractPage(ResultSet resultSet) throws SQLException {
+    private PageResult<CameraResponse> extractPage(
+            ResultSet resultSet, int pageNum, int pageSize
+    ) throws SQLException {
         List<CameraResponse> data = new ArrayList<CameraResponse>();
         long total = 0L;
 
@@ -160,7 +163,7 @@ public class CameraRepository {
             ));
         }
 
-        return new CameraPage(total, data);
+        return PageResult.of(total, pageNum, pageSize, data);
     }
 
     private PreparedStatement createStatement(

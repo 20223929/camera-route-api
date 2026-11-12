@@ -388,7 +388,6 @@
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message || result.error || ("HTTP " + response.status));
-                if (result.code !== 200) throw new Error(result.message || "接口返回失败");
                 const cameras = Array.isArray(result.data) ? result.data : [];
                 total = Number(result.total) || 0;
                 renderCameras(cameras);

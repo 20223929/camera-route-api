@@ -1,6 +1,7 @@
 package com.example.cameraroute.service;
 
-import com.example.cameraroute.dto.CameraPage;
+import com.example.cameraroute.dto.PageResult;
+import com.example.cameraroute.dto.CameraResponse;
 import com.example.cameraroute.dto.RouteCameraRequest;
 import com.example.cameraroute.repository.CameraRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,11 +40,11 @@ class CameraRouteServiceTest {
     @Test
     void synchronouslyQueriesGeoJsonLineStringAndReturnsRequestedPage() {
         RouteCameraRequest request = request("WGS84", 100);
-        CameraPage expected = new CameraPage(3, Collections.emptyList());
+        PageResult<CameraResponse> expected = PageResult.of(3, 2, 20, Collections.<CameraResponse>emptyList());
         when(repository.findCamerasNearRoute(anyList(), eq(100), eq(2), eq(20)))
                 .thenReturn(expected);
 
-        CameraPage actual = service.findCameras(request, 2, 20);
+        PageResult<CameraResponse> actual = service.findCameras(request, 2, 20);
 
         assertSame(expected, actual);
         verify(repository).findCamerasNearRoute(anyList(), eq(100), eq(2), eq(20));
@@ -90,9 +91,9 @@ class CameraRouteServiceTest {
     void acceptsGcj02AliasesAndUsesDefaultBuffer() {
         RouteCameraRequest request = request("gcj_02", null);
         when(repository.findCamerasNearRoute(anyList(), eq(100), eq(1), eq(100)))
-                .thenReturn(new CameraPage(0, Collections.emptyList()));
+                .thenReturn(PageResult.empty(1, 100));
 
-        CameraPage page = service.findCameras(request, 1, 100);
+        PageResult<CameraResponse> page = service.findCameras(request, 1, 100);
 
         assertEquals(0, page.getTotal());
         verify(repository).findCamerasNearRoute(anyList(), eq(100), eq(1), eq(100));

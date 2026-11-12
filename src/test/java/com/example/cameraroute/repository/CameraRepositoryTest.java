@@ -1,6 +1,6 @@
 package com.example.cameraroute.repository;
 
-import com.example.cameraroute.dto.CameraPage;
+import com.example.cameraroute.dto.PageResult;
 import com.example.cameraroute.dto.CameraResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,13 +52,13 @@ class CameraRepositoryTest {
         doAnswer(invocation -> {
             PreparedStatementCreator creator = invocation.getArgument(0);
             creator.createPreparedStatement(connection);
-            return new CameraPage(12L, Collections.singletonList(mock(CameraResponse.class)));
+            return PageResult.of(12L, 3, 25, Collections.singletonList(mock(CameraResponse.class)));
         }).when(jdbcTemplate).query(
                 any(PreparedStatementCreator.class),
-                org.mockito.ArgumentMatchers.<ResultSetExtractor<CameraPage>>any()
+                org.mockito.ArgumentMatchers.<ResultSetExtractor<PageResult<CameraResponse>>>any()
         );
 
-        CameraPage page = repository.findCamerasNearRoute(
+        PageResult<CameraResponse> page = repository.findCamerasNearRoute(
                 Arrays.asList("LINESTRING(113 23,113.01 23)"),
                 250,
                 3,
@@ -78,7 +78,7 @@ class CameraRepositoryTest {
 
     @Test
     void skipsDatabaseWhenNoRouteSegmentsAreProvided() {
-        CameraPage page = repository.findCamerasNearRoute(
+        PageResult<CameraResponse> page = repository.findCamerasNearRoute(
                 Collections.<String>emptyList(),
                 100,
                 1,
@@ -113,12 +113,12 @@ class CameraRepositoryTest {
                 creator.createPreparedStatement(connection);
                 invocationCount++;
                 return invocationCount == 1
-                        ? new CameraPage(0L, Collections.emptyList())
+                        ? PageResult.empty(99, 20)
                         : Long.valueOf(42L);
             }
         });
 
-        CameraPage page = repository.findCamerasNearRoute(
+        PageResult<CameraResponse> page = repository.findCamerasNearRoute(
                 Arrays.asList("LINESTRING(113 23,113.01 23)"),
                 100,
                 99,
