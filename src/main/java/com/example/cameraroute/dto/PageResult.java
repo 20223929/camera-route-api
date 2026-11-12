@@ -1,6 +1,5 @@
 package com.example.cameraroute.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.util.Collections;
@@ -8,7 +7,6 @@ import java.util.List;
 
 /** 通用分页响应结果。 */
 @Getter
-@AllArgsConstructor
 public class PageResult<T> {
     private final long total;
     private final int pageNum;
@@ -16,6 +14,22 @@ public class PageResult<T> {
     private final int currentCount;
     private final long totalPages;
     private final List<T> data;
+
+    private PageResult(
+            long total,
+            int pageNum,
+            int pageSize,
+            int currentCount,
+            long totalPages,
+            List<T> data
+    ) {
+        this.total = total;
+        this.pageNum = pageNum;
+        this.pageSize = pageSize;
+        this.currentCount = currentCount;
+        this.totalPages = totalPages;
+        this.data = data;
+    }
 
     public static <T> PageResult<T> of(long total, int pageNum, int pageSize, List<T> data) {
         if (total < 0) {
