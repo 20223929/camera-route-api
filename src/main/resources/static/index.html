@@ -245,6 +245,7 @@
         let pageSize = 50;
         let cameraMarkers = new Map();
         let selectedCamera = null;
+        let isSearching = false;
 
         const $ = id => document.getElementById(id);
         const status = $("status");
@@ -357,7 +358,14 @@
         }
 
         async function search(page) {
+            if (isSearching) return;
             let coordinates;
+            let timeoutId;
+            isSearching = true;
+            $("searchBtn").disabled = true;
+            $("prevPage").disabled = true;
+            $("nextPage").disabled = true;
+            $("searchBtn").textContent = "正在查询…";
             try {
                 coordinates = parseCoordinates();
                 const bufferDistance = Number($("buffer").value);
@@ -370,13 +378,14 @@
                 pageSize = Number($("pageSize").value);
                 currentPage = page;
                 updateRoute();
-                $("searchBtn").disabled = true;
-                $("searchBtn").textContent = "正在查询…";
                 setStatus("正在同步查询路线周边摄像头，请稍候…");
                 const query = new URLSearchParams({ pageNum: String(page), pageSize: String(pageSize) });
+                const controller = new AbortController();
+                timeoutId = window.setTimeout(() => controller.abort(), 65000);
                 const response = await fetch(endpoint + "?" + query.toString(), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
+                    signal: controller.signal,
                     body: JSON.stringify({
                         type: $("coordType").value,
                         bufferDistance: bufferDistance,
@@ -386,7 +395,13 @@
                         }
                     })
                 });
-                const result = await response.json();
+                const responseText = await response.text();
+                let result;
+                try {
+                    result = responseText ? JSON.parse(responseText) : {};
+                } catch (parseError) {
+                    throw new Error("服务器返回了无法识别的响应（HTTP " + response.status + "）");
+                }
                 if (!response.ok) throw new Error(result.message || result.error || ("HTTP " + response.status));
                 const cameras = Array.isArray(result.data) ? result.data : [];
                 total = Number(result.total) || 0;
@@ -399,10 +414,24 @@
                 $("nextPage").disabled = currentPage >= totalPages;
                 setStatus("查询完成：本页返回 " + cameras.length + " 条，路线周边共 " + total.toLocaleString("zh-CN") + " 个摄像头。", "ok");
             } catch (error) {
-                setStatus(error.message || "查询失败，请检查接口服务和网络。", "error");
+                renderCameras([]);
+                total = 0;
+                $("totalCount").textContent = "—";
+                $("currentCount").textContent = "0";
+                $("pageInfo").textContent = "查询失败";
+                setStatus(
+                    error.name === "AbortError"
+                        ? "查询超时（65 秒），请检查服务状态或缩短路线。"
+                        : (error.message || "查询失败，请检查接口服务和网络。"),
+                    "error"
+                );
             } finally {
+                if (timeoutId) window.clearTimeout(timeoutId);
+                isSearching = false;
                 $("searchBtn").disabled = false;
                 $("searchBtn").textContent = "⌕　查询沿途摄像头";
+                $("prevPage").disabled = currentPage <= 1 || total === 0;
+                $("nextPage").disabled = currentPage * pageSize >= total;
             }
         }
 
