@@ -164,6 +164,30 @@ class RouteSegmenterTest {
         );
     }
 
+    @Test
+    void segmentResultCalculatesLengthAndEnforcesLimitsDuringSegmentation() {
+        List<CoordinateConverter.Point> points = Arrays.asList(
+                point(0.0, 0.0), point(0.3, 0.0)
+        );
+        RouteSegmenter.SegmentationResult result =
+                RouteSegmenter.segment(points, 10000.0d, 5000000.0d, 500);
+        assertTrue(result.getRouteLengthMeters() > 30000.0d);
+        assertEquals(RouteSegmenter.toWktSegments(points, 10000.0d),
+                result.getSegmentWkts());
+        assertThrows(IllegalArgumentException.class,
+                () -> RouteSegmenter.segment(points, 1000.0d, 5000000.0d, 2));
+        assertThrows(IllegalArgumentException.class,
+                () -> RouteSegmenter.segment(points, 10000.0d, 1000.0d, 500));
+    }
+
+    @Test
+    void preservesEightDecimalWktPrecision() {
+        List<String> segments = RouteSegmenter.toWktSegments(
+                Arrays.asList(point(113.123456789, 23.123456789),
+                        point(113.124, 23.124)), 10000.0d);
+        assertTrue(segments.get(0).contains("113.12345679 23.12345679"));
+    }
+
     private static CoordinateConverter.Point point(double longitude, double latitude) {
         return new CoordinateConverter.Point(longitude, latitude);
     }
