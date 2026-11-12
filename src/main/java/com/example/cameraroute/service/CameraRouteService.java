@@ -39,8 +39,8 @@ public class CameraRouteService {
             int pageSize
     ) {
         long startedAt = System.nanoTime();
-        int coordinateCount = request == null || request.getCoordinates() == null
-                ? 0 : request.getCoordinates().size();
+        int coordinateCount = request == null || request.getGeometry() == null || request.getGeometry().getCoordinates() == null
+                ? 0 : request.getGeometry().getCoordinates().size();
         String coordinateType = request == null ? null : request.getType();
 
         log.info(
@@ -95,9 +95,9 @@ public class CameraRouteService {
 
         List<CoordinateConverter.Point> wgs84 =
                 new ArrayList<CoordinateConverter.Point>();
-        for (RouteCameraRequest.CoordinatePoint point : request.getCoordinates()) {
+        for (List<Double> coordinate : request.getGeometry().getCoordinates()) {
             wgs84.add(CoordinateConverter.toWgs84(
-                    point.getLongitude(), point.getLatitude(), type
+                    coordinate.get(0), coordinate.get(1), type
             ));
         }
 
@@ -131,19 +131,27 @@ public class CameraRouteService {
     }
 
     private void validateCoordinates(RouteCameraRequest request) {
-        if (request == null || request.getCoordinates() == null
-                || request.getCoordinates().size() < 2) {
+        if (request == null || request.getGeometry() == null) {
+            throw new IllegalArgumentException("geometry 不能为空");
+        }
+        RouteCameraRequest.Geometry geometry = request.getGeometry();
+        if (!"LineString".equalsIgnoreCase(geometry.getType())) {
+            throw new IllegalArgumentException("geometry.type 目前仅支持 LineString");
+        }
+        List<List<Double>> coordinates = geometry.getCoordinates();
+        if (coordinates == null || coordinates.size() < 2) {
             throw new IllegalArgumentException("路线至少需要两个坐标点");
         }
-
-        for (RouteCameraRequest.CoordinatePoint point : request.getCoordinates()) {
-            if (point == null || point.getLongitude() == null
-                    || point.getLatitude() == null) {
-                throw new IllegalArgumentException("路线坐标不能为 null");
+        if (coordinates.size() > 100000) {
+            throw new IllegalArgumentException("路线坐标点数量不能超过 100000");
+        }
+        for (List<Double> coordinate : coordinates) {
+            if (coordinate == null || coordinate.size() != 2
+                    || coordinate.get(0) == null || coordinate.get(1) == null) {
+                throw new IllegalArgumentException("GeoJSON 坐标必须为 [longitude, latitude] 二维数组");
             }
-
-            double longitude = point.getLongitude();
-            double latitude = point.getLatitude();
+            double longitude = coordinate.get(0);
+            double latitude = coordinate.get(1);
             if (!Double.isFinite(longitude) || !Double.isFinite(latitude)
                     || longitude < -180 || longitude > 180
                     || latitude < -90 || latitude > 90) {
