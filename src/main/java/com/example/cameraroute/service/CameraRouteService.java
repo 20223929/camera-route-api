@@ -39,7 +39,8 @@ public class CameraRouteService {
             int pageSize
     ) {
         long startedAt = System.nanoTime();
-        int coordinateCount = request == null || request.getGeometry() == null || request.getGeometry().getCoordinates() == null
+        int coordinateCount = request == null || request.getGeometry() == null
+                || request.getGeometry().getCoordinates() == null
                 ? 0 : request.getGeometry().getCoordinates().size();
         String coordinateType = request == null ? null : request.getType();
 
@@ -148,7 +149,9 @@ public class CameraRouteService {
         for (List<Double> coordinate : coordinates) {
             if (coordinate == null || coordinate.size() != 2
                     || coordinate.get(0) == null || coordinate.get(1) == null) {
-                throw new IllegalArgumentException("GeoJSON 坐标必须为 [longitude, latitude] 二维数组");
+                throw new IllegalArgumentException(
+                        "GeoJSON 坐标必须为 [longitude, latitude] 二维数组"
+                );
             }
             double longitude = coordinate.get(0);
             double latitude = coordinate.get(1);
