@@ -368,7 +368,7 @@
 
         function renderCameras(cameras) {
             const tbody = $("cameraRows");
-            cameraLayer.clearLayers();
+            clearOverlays(cameraOverlays);
             cameraMarkers.clear();
             selectedCamera = null;
 
