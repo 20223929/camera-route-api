@@ -52,6 +52,50 @@ class CameraRouteServiceTest {
     }
 
     @Test
+    void returnsCameraCoordinatesInRequestedGcj02CoordinateSystem() {
+        CameraResponse camera = new CameraResponse(
+                "camera-1", "测试摄像头", "厂商",
+                113.264385d, 23.129112d,
+                "310000", "测试区", "station-1", "测试派出所", 12.5d
+        );
+        PageResult<CameraResponse> expectedPage = PageResult.of(
+                1, 1, 20, Collections.singletonList(camera)
+        );
+        when(repository.findCamerasNearRoute(anyList(), eq(100), eq(1), eq(20)))
+                .thenReturn(expectedPage);
+
+        PageResult<CameraResponse> actual = service.findCameras(
+                request("GCJ-02", 100), 1, 20
+        );
+
+        assertSame(expectedPage, actual);
+        assertEquals(113.269d, camera.getX(), 0.001d);
+        assertEquals(23.126d, camera.getY(), 0.001d);
+    }
+
+    @Test
+    void keepsCameraCoordinatesInWgs84WhenRequestUsesWgs84() {
+        CameraResponse camera = new CameraResponse(
+                "camera-1", "测试摄像头", "厂商",
+                113.264385d, 23.129112d,
+                "310000", "测试区", "station-1", "测试派出所", 12.5d
+        );
+        PageResult<CameraResponse> expectedPage = PageResult.of(
+                1, 1, 20, Collections.singletonList(camera)
+        );
+        when(repository.findCamerasNearRoute(anyList(), eq(100), eq(1), eq(20)))
+                .thenReturn(expectedPage);
+
+        PageResult<CameraResponse> actual = service.findCameras(
+                request("WGS84", 100), 1, 20
+        );
+
+        assertSame(expectedPage, actual);
+        assertEquals(113.264385d, camera.getX(), 0.0d);
+        assertEquals(23.129112d, camera.getY(), 0.0d);
+    }
+
+    @Test
     void rejectsInvalidPaginationBeforeQueryingRepository() {
         assertThrows(
                 IllegalArgumentException.class,
