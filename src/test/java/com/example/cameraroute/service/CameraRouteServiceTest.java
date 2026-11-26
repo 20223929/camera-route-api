@@ -93,6 +93,7 @@ class CameraRouteServiceTest {
         );
 
         assertSame(expectedPage, actual);
+        assertEquals("KB-001", camera.getJpbh());
         assertEquals(113.269715d, camera.getX(), 0.000001d);
         assertEquals(23.126435d, camera.getY(), 0.000001d);
     }
@@ -115,6 +116,7 @@ class CameraRouteServiceTest {
         );
 
         assertSame(expectedPage, actual);
+        assertEquals("KB-001", camera.getJpbh());
         assertEquals(113.264385d, camera.getX(), 0.0d);
         assertEquals(23.129112d, camera.getY(), 0.0d);
     }
