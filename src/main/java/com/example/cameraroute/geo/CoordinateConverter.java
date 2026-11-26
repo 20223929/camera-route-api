@@ -62,7 +62,10 @@ public final class CoordinateConverter {
     }
 
     private static boolean outsideChina(double lon, double lat) {
-        return lon < 72.004 || lon > 137.8347 || lat < 0.8293 || lat > 55.8271;
+        // The broad GCJ-02 bounding box also covers countries such as Singapore.
+        // Mainland China and Hainan are north of 17.5 degrees latitude; use this
+        // conservative southern limit to avoid transforming clearly overseas points.
+        return lon < 72.004 || lon > 137.8347 || lat < 17.5 || lat > 55.8271;
     }
 
     private static double transformLat(double x, double y) {
