@@ -69,8 +69,8 @@ class CameraRouteServiceTest {
         );
 
         assertSame(expectedPage, actual);
-        assertEquals(113.269d, camera.getX(), 0.001d);
-        assertEquals(23.126d, camera.getY(), 0.001d);
+        assertEquals(113.269715d, camera.getX(), 0.000001d);
+        assertEquals(23.126435d, camera.getY(), 0.000001d);
     }
 
     @Test
