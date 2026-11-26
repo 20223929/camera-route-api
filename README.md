@@ -17,7 +17,7 @@
 
 摄像头表由现有业务系统维护。本项目不会创建、重命名或迁移该业务表。表名固定写在 `CameraRepository` 中，不放入配置文件或请求参数。
 
-业务字段包括 `sbbm`、`sbmc`、`sbcs`、`x`、`y`、`xzqbm`、`xzqmc`、`pcsbm`、`pcsmc` 和 `geom`。数据库中的 `geom` 保持 geometry 类型，查询时通过 `geom::geography` 计算米制距离。
+业务字段包括 `sbbm`、`jpbh`、`sbmc`、`sbcs`、`x`、`y`、`xzqbm`、`xzqmc`、`pcsbm`、`pcsmc` 和 `geom`。数据库中的 `geom` 保持 geometry 类型，查询时通过 `geom::geography` 计算米制距离。
 
 ## 2. 数据库初始化与清理
 
@@ -93,6 +93,7 @@
     "data": [
       {
         "sbbm": "设备编码",
+        "jpbh": "键盘编号",
         "sbmc": "设备名称",
         "sbcs": "设备厂商",
         "x": 113.264385,
@@ -100,8 +101,7 @@
         "xzqbm": "行政区编码",
         "xzqmc": "行政区名称",
         "pcsbm": "派出所编码",
-        "pcsmc": "派出所名称",
-        "distance": 12.35
+        "pcsmc": "派出所名称"
       }
     ]
   }
