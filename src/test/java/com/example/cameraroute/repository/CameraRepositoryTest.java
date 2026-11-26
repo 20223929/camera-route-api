@@ -68,6 +68,8 @@ class CameraRepositoryTest {
         verify(connection).prepareStatement(org.mockito.ArgumentMatchers.argThat(sql ->
                 sql.contains("ST_DWithin(c.geom::geography, r.geog, ?)")
                         && sql.contains("LEFT JOIN paged")
+                        && sql.contains("c.jpbh")
+                        && !sql.contains("AS distance,")
                         && !sql.contains("search_bbox")
                         && !sql.contains("ST_Buffer")
         ));
