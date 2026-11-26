@@ -78,9 +78,9 @@ class CameraRouteServiceTest {
     @Test
     void returnsCameraCoordinatesInRequestedGcj02CoordinateSystem() {
         CameraResponse camera = new CameraResponse(
-                "camera-1", "测试摄像头", "厂商",
+                "camera-1", "KB-001", "测试摄像头", "厂商",
                 113.264385d, 23.129112d,
-                "310000", "测试区", "station-1", "测试派出所", 12.5d
+                "310000", "测试区", "station-1", "测试派出所"
         );
         PageResult<CameraResponse> expectedPage = PageResult.of(
                 1, 1, 20, Collections.singletonList(camera)
@@ -100,9 +100,9 @@ class CameraRouteServiceTest {
     @Test
     void keepsCameraCoordinatesInWgs84WhenRequestUsesWgs84() {
         CameraResponse camera = new CameraResponse(
-                "camera-1", "测试摄像头", "厂商",
+                "camera-1", "KB-001", "测试摄像头", "厂商",
                 113.264385d, 23.129112d,
-                "310000", "测试区", "station-1", "测试派出所", 12.5d
+                "310000", "测试区", "station-1", "测试派出所"
         );
         PageResult<CameraResponse> expectedPage = PageResult.of(
                 1, 1, 20, Collections.singletonList(camera)
