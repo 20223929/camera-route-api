@@ -5,6 +5,7 @@ import com.example.cameraroute.dto.CameraResponse;
 import com.example.cameraroute.dto.RouteCameraRequest;
 import com.example.cameraroute.repository.CameraRepository;
 import com.example.cameraroute.geo.CoordinateType;
+import com.example.cameraroute.geo.CoordinateConverter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -49,6 +50,29 @@ class CameraRouteServiceTest {
 
         assertSame(expected, actual);
         verify(repository).findCamerasNearRoute(anyList(), eq(100), eq(2), eq(20));
+    }
+
+    @Test
+    void convertsGcj02RouteToWgs84BeforeRepositoryQuery() {
+        when(repository.findCamerasNearRoute(anyList(), eq(100), eq(1), eq(20)))
+                .thenReturn(PageResult.empty(1, 20));
+
+        service.findCameras(request("GCJ-02", 100), 1, 20);
+
+        org.mockito.ArgumentCaptor<List<String>> segments =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(repository).findCamerasNearRoute(segments.capture(), eq(100), eq(1), eq(20));
+        CoordinateConverter.Point expected = CoordinateConverter.toWgs84(
+                113.264385d, 23.129112d, CoordinateType.GCJ_02
+        );
+        String firstCoordinate = String.format(
+                java.util.Locale.ROOT, "%.8f %.8f",
+                expected.getLongitude(), expected.getLatitude()
+        );
+        org.junit.jupiter.api.Assertions.assertTrue(
+                segments.getValue().get(0).startsWith("LINESTRING(" + firstCoordinate),
+                "Repository WKT must contain WGS84 coordinates"
+        );
     }
 
     @Test
