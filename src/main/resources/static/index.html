@@ -171,6 +171,9 @@
         let routeOverlays = [];
         let cameraOverlays = [];
         let routePoints = DEFAULT_COORDINATES.map(point => point.slice());
+        let routePointsType = "WGS84";
+        let lastCameraResults = [];
+        let lastCameraResultsType = null;
         const pageSize = 1000;
         let total = 0;
         let cameraMarkers = new Map();
@@ -257,12 +260,23 @@
             return sourceType === "GCJ-02" ? point.slice() : wgs84ToGcj02(point[0], point[1]);
         }
 
+        function convertCoordinate(point, fromType, toType) {
+            if (fromType === toType) return point.slice();
+            return fromType === "WGS84"
+                ? wgs84ToGcj02(point[0], point[1])
+                : gcj02ToWgs84(point[0], point[1]);
+        }
+
+        function syncCoordinateText() {
+            $("coordinates").value = routePoints
+                .map(point => point.map(value => Number(value).toFixed(8)).join(","))
+                .join("\n");
+        }
+
         function updateRoute() {
             if (!map || !AMap) return;
             clearOverlays(routeOverlays);
-            clearOverlays(cameraOverlays);
-            cameraMarkers.clear();
-            const sourceType = $("coordType").value;
+            const sourceType = routePointsType;
             const path = routePoints.map(point => toMapPosition(point, sourceType));
             if (path.length) {
                 const line = new AMap.Polyline({
@@ -300,7 +314,9 @@
             return Number.isFinite(number) ? number.toFixed(digits) : "—";
         }
 
-        function renderCameras(cameras) {
+        function renderCameras(cameras, sourceType) {
+            lastCameraResults = cameras.slice();
+            lastCameraResultsType = cameras.length ? sourceType : null;
             clearOverlays(cameraOverlays);
             cameraMarkers.clear();
             if (!map || !AMap || !cameras.length) return;
@@ -310,7 +326,7 @@
                     const longitude = Number(camera.x);
                     const latitude = Number(camera.y);
                     if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
-                    const position = toMapPosition([longitude, latitude], $("coordType").value);
+                    const position = toMapPosition([longitude, latitude], sourceType);
                     const marker = new AMap.Marker({
                         position: position,
                         title: camera.sbmc || "未命名设备",
@@ -321,7 +337,7 @@
                         const info = new AMap.InfoWindow({
                             content: "<strong>" + escapeHtml(camera.sbmc || "未命名设备") + "</strong><br>" +
                                 "设备编码：" + escapeHtml(camera.sbbm) + "<br>" +
-                                "坐标（" + escapeHtml($("coordType").value) + "）：" +
+                                "坐标（" + escapeHtml(sourceType) + "）：" +
                                 longitude.toFixed(6) + ", " + latitude.toFixed(6) + "<br>" +
                                 "距路线：" + formatNumber(camera.distance, 2) + " 米<br>" +
                                 "厂商：" + escapeHtml(camera.sbcs || "—") + "<br>" +
@@ -344,15 +360,18 @@
         async function search() {
             if (isSearching) return;
             let coordinates;
+            let requestType;
             let timeoutId;
             isSearching = true;
             $("searchBtn").disabled = true;
             $("resetBtn").disabled = true;
             $("clearPoints").disabled = true;
+            $("coordType").disabled = true;
             $("searchBtn").textContent = "正在查询…";
-            renderCameras([]);
+            renderCameras([], null);
             let resultsRendered = false;
             try {
+                requestType = $("coordType").value;
                 coordinates = parseCoordinates();
                 const bufferDistance = Number($("buffer").value);
                 if (!Number.isInteger(bufferDistance) || bufferDistance < 0 || bufferDistance > 10000) {
@@ -360,7 +379,8 @@
                 }
                 const endpoint = $("apiPath").value.trim();
                 if (!endpoint) throw new Error("请填写接口地址");
-                routePoints = coordinates;
+                routePoints = coordinates.map(point => point.slice());
+                routePointsType = requestType;
                 updateRoute();
                 setStatus("正在同步查询路线周边摄像头，请稍候…");
                 const query = new URLSearchParams({ pageNum: "1", pageSize: String(pageSize) });
@@ -371,7 +391,7 @@
                     headers: { "Content-Type": "application/json" },
                     signal: controller.signal,
                     body: JSON.stringify({
-                        type: $("coordType").value,
+                        type: requestType,
                         bufferDistance: bufferDistance,
                         geometry: {
                             type: "LineString",
@@ -398,7 +418,7 @@
                 }
                 const cameras = pageResult.data;
                 total = Number(pageResult.total) || 0;
-                renderCameras(cameras);
+                renderCameras(cameras, requestType);
                 resultsRendered = true;
                 setStatus("查询完成：路线周边共 " + total.toLocaleString("zh-CN") + " 个摄像头，地图显示前 " + cameras.length + " 个结果。", "ok");
             } catch (error) {
@@ -417,24 +437,25 @@
                 $("searchBtn").textContent = "⌕　查询沿途摄像头";
                 $("resetBtn").disabled = false;
                 $("clearPoints").disabled = false;
+                $("coordType").disabled = false;
             }
         }
 
         $("searchBtn").addEventListener("click", () => search());
         $("resetBtn").addEventListener("click", () => {
             routePoints = DEFAULT_COORDINATES.map(point => point.slice());
-            $("coordinates").value = routePoints.map(point => point.join(",")).join("\n");
-            $("buffer").value = "100";
+            routePointsType = "WGS84";
             $("coordType").value = "WGS84";
-            clearOverlays(cameraOverlays);
-            cameraMarkers.clear();
+            syncCoordinateText();
+            $("buffer").value = "100";
+            renderCameras([], null);
             total = 0;
             updateRoute();
             setStatus("已恢复上海市默认路线。");
         });
         $("clearPoints").addEventListener("click", () => {
             routePoints = [];
-            $("coordinates").value = "";
+            syncCoordinateText();
             updateRoute();
             setStatus("路线点已清空。点击地图添加起点和途经点。");
         });
@@ -463,10 +484,10 @@
                 map.on("click", event => {
                     if (isSearching) return;
                     const mapPoint = [Number(event.lnglat.getLng().toFixed(6)), Number(event.lnglat.getLat().toFixed(6))];
-                    const point = $("coordType").value === "GCJ-02"
+                    const point = routePointsType === "GCJ-02"
                         ? mapPoint : gcj02ToWgs84(mapPoint[0], mapPoint[1]);
                     routePoints.push(point);
-                    $("coordinates").value = routePoints.map(item => item.join(",")).join("\n");
+                    syncCoordinateText();
                     updateRoute();
                     setStatus("已添加路线点 " + routePoints.length + "，点击“查询沿途摄像头”执行检索。");
                 });
@@ -478,8 +499,35 @@
             });
         }
 
-        $("coordType").addEventListener("change", updateRoute);
-        $("coordinates").value = routePoints.map(point => point.join(",")).join("\n");
+        $("coordType").addEventListener("change", () => {
+            const previousType = routePointsType;
+            const nextType = $("coordType").value;
+            try {
+                const currentPoints = parseCoordinates();
+                routePoints = currentPoints.map(point =>
+                    convertCoordinate(point, previousType, nextType)
+                );
+                routePointsType = nextType;
+                syncCoordinateText();
+                updateRoute();
+                if (lastCameraResults.length && lastCameraResultsType) {
+                    renderCameras(lastCameraResults, lastCameraResultsType);
+                }
+            } catch (error) {
+                $("coordType").value = previousType;
+                setStatus("切换坐标系失败：" + error.message, "error");
+            }
+        });
+        $("coordinates").addEventListener("input", () => {
+            try {
+                routePoints = parseCoordinates();
+                routePointsType = $("coordType").value;
+                updateRoute();
+            } catch (error) {
+                // Keep the user's in-progress text; validation is performed before querying.
+            }
+        });
+        syncCoordinateText();
         initializeAmap();
     })();
 </script>
