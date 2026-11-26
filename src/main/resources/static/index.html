@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#101827">
     <title>沿途摄像头检索</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <style>
         :root {
             color-scheme: dark;
@@ -96,9 +94,9 @@
         .page-actions { display:flex; gap:7px; }
         .page-actions button { padding:6px 11px; background:#22334b; color:#dce8f8; border:1px solid #344966; }
         .page-actions button:disabled { opacity:.35; cursor:not-allowed; }
-        .leaflet-popup-content-wrapper,.leaflet-popup-tip { background:#132238;color:#e8eef8; }
-        .leaflet-popup-content { font-size:12px; line-height:1.7; }
-        .leaflet-container a { color:#78b6ff; }
+
+        .amap-info-content { background:#132238;color:#e8eef8;border:1px solid #2a3b55;border-radius:8px;font-size:12px;line-height:1.7; }
+        .amap-info-sharp { border-top-color:#132238; }
         @media (max-width:1050px) {
             .layout { grid-template-columns:300px minmax(0,1fr); padding:12px; gap:12px; }
             .main { grid-template-rows:480px auto; }
@@ -219,8 +217,8 @@
     </main>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://webapi.amap.com/loader.js"></script>
+<script src="/amap-config.js"></script>
 <script>
     (function () {
         "use strict";
@@ -231,14 +229,10 @@
             [113.278000, 23.136000],
             [113.286000, 23.140000]
         ];
-        const map = L.map("map", { zoomControl: true }).setView([23.132, 113.274], 13);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        }).addTo(map);
-
-        const routeLayer = L.layerGroup().addTo(map);
-        const cameraLayer = L.layerGroup().addTo(map);
+        let AMap = null;
+        let map = null;
+        let routeOverlays = [];
+        let cameraOverlays = [];
         let routePoints = DEFAULT_COORDINATES.map(point => point.slice());
         let currentPage = 1;
         let total = 0;
@@ -271,20 +265,92 @@
             });
         }
 
+        function clearOverlays(overlays) {
+            if (map && overlays.length) map.remove(overlays);
+            overlays.length = 0;
+        }
+
+        function wgs84ToGcj02(longitude, latitude) {
+            const a = 6378245.0;
+            const ee = 0.00669342162296594323;
+            const pi = Math.PI;
+            if (longitude < 72.004 || longitude > 137.8347 || latitude < 0.8293 || latitude > 55.8271) {
+                return [longitude, latitude];
+            }
+            let dLat = transformLat(longitude - 105.0, latitude - 35.0);
+            let dLon = transformLon(longitude - 105.0, latitude - 35.0);
+            const radLat = latitude / 180.0 * pi;
+            let magic = Math.sin(radLat);
+            magic = 1 - ee * magic * magic;
+            const sqrtMagic = Math.sqrt(magic);
+            dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * pi);
+            dLon = (dLon * 180.0) / (a / sqrtMagic * Math.cos(radLat) * pi);
+            return [longitude + dLon, latitude + dLat];
+        }
+
+        function transformLat(x, y) {
+            let value = -100 + 2*x + 3*y + 0.2*y*y + 0.1*x*y + 0.2*Math.sqrt(Math.abs(x));
+            value += (20*Math.sin(6*x*Math.PI) + 20*Math.sin(2*x*Math.PI))*2/3;
+            value += (20*Math.sin(y*Math.PI) + 40*Math.sin(y/3*Math.PI))*2/3;
+            value += (160*Math.sin(y/12*Math.PI) + 320*Math.sin(y*Math.PI/30))*2/3;
+            return value;
+        }
+
+        function transformLon(x, y) {
+            let value = 300 + x + 2*y + 0.1*x*x + 0.1*x*y + 0.1*Math.sqrt(Math.abs(x));
+            value += (20*Math.sin(6*x*Math.PI) + 20*Math.sin(2*x*Math.PI))*2/3;
+            value += (20*Math.sin(x*Math.PI) + 40*Math.sin(x/3*Math.PI))*2/3;
+            value += (150*Math.sin(x/12*Math.PI) + 300*Math.sin(x/30*Math.PI))*2/3;
+            return value;
+        }
+
+        function gcj02ToWgs84(longitude, latitude) {
+            let guessLon = longitude;
+            let guessLat = latitude;
+            for (let i = 0; i < 8; i++) {
+                const converted = wgs84ToGcj02(guessLon, guessLat);
+                const deltaLon = converted[0] - longitude;
+                const deltaLat = converted[1] - latitude;
+                guessLon -= deltaLon;
+                guessLat -= deltaLat;
+                if (Math.max(Math.abs(deltaLon), Math.abs(deltaLat)) < 1e-7) break;
+            }
+            return [guessLon, guessLat];
+        }
+
+        function toMapPosition(point, sourceType) {
+            return sourceType === "GCJ-02" ? point.slice() : wgs84ToGcj02(point[0], point[1]);
+        }
+
         function updateRoute() {
-            routeLayer.clearLayers();
-            cameraLayer.clearLayers();
+            if (!map || !AMap) return;
+            clearOverlays(routeOverlays);
+            clearOverlays(cameraOverlays);
             cameraMarkers.clear();
             selectedCamera = null;
-            const latLngs = routePoints.map(point => [point[1], point[0]]);
-            if (latLngs.length) {
-                L.polyline(latLngs, { color: "#42d3cf", weight: 5, opacity: .95 }).addTo(routeLayer);
-                L.circleMarker(latLngs[0], { radius: 7, color: "#0b1728", weight: 2, fillColor: "#42d3cf", fillOpacity: 1 })
-                    .bindTooltip("起点").addTo(routeLayer);
-                L.circleMarker(latLngs[latLngs.length - 1], { radius: 7, color: "#0b1728", weight: 2, fillColor: "#4e9cff", fillOpacity: 1 })
-                    .bindTooltip("终点").addTo(routeLayer);
-                if (latLngs.length > 1) map.fitBounds(L.latLngBounds(latLngs).pad(.18));
-                else map.setView(latLngs[0], 14);
+            const sourceType = $("coordType").value;
+            const path = routePoints.map(point => toMapPosition(point, sourceType));
+            if (path.length) {
+                const line = new AMap.Polyline({
+                    path: path, strokeColor: "#42d3cf", strokeWeight: 5,
+                    strokeOpacity: .95, lineJoin: "round", lineCap: "round"
+                });
+                routeOverlays.push(line);
+                const start = new AMap.CircleMarker({
+                    center: path[0], radius: 7, strokeColor: "#0b1728",
+                    strokeWeight: 2, fillColor: "#42d3cf", fillOpacity: 1
+                });
+                routeOverlays.push(start);
+                if (path.length > 1) {
+                    const end = new AMap.CircleMarker({
+                        center: path[path.length - 1], radius: 7, strokeColor: "#0b1728",
+                        strokeWeight: 2, fillColor: "#4e9cff", fillOpacity: 1
+                    });
+                    routeOverlays.push(end);
+                }
+                map.add(routeOverlays);
+                if (path.length > 1) map.setFitView(routeOverlays, false, [60, 60, 60, 60]);
+                else map.setZoomAndCenter(14, path[0]);
             }
             $("routeCount").textContent = String(routePoints.length);
         }
@@ -332,20 +398,33 @@
 
             // 列表是主要查询结果；地图标记失败不能反过来清空已渲染的列表。
             try {
+                if (!map || !AMap) return;
+                const sourceType = $("coordType").value;
                 cameras.forEach(camera => {
                     const longitude = Number(camera.x);
                     const latitude = Number(camera.y);
                     if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
-                    const marker = L.circleMarker([latitude, longitude], {
-                        radius: 5, color: "#fff", weight: 1, fillColor: "#ff657a", fillOpacity: .95
-                    }).bindPopup(
-                        "<strong>" + escapeHtml(camera.sbmc || "未命名设备") + "</strong><br>" +
-                        "设备编码：" + escapeHtml(camera.sbbm) + "<br>" +
-                        "距路线：" + formatNumber(camera.distance, 2) + " 米<br>" +
-                        "厂商：" + escapeHtml(camera.sbcs || "—")
-                    ).addTo(cameraLayer);
-                    cameraMarkers.set(String(camera.sbbm), marker);
+                    const position = toMapPosition([longitude, latitude], "WGS84");
+                    const marker = new AMap.Marker({
+                        position: position,
+                        title: camera.sbmc || "未命名设备",
+                        offset: new AMap.Pixel(-7, -7),
+                        content: '<div style="width:12px;height:12px;border:2px solid #fff;border-radius:50%;background:#ff657a;box-shadow:0 0 0 3px #ff657a44"></div>'
+                    });
+                    marker.on("click", () => {
+                        const info = new AMap.InfoWindow({
+                            content: "<strong>" + escapeHtml(camera.sbmc || "未命名设备") + "</strong><br>" +
+                                "设备编码：" + escapeHtml(camera.sbbm) + "<br>" +
+                                "距路线：" + formatNumber(camera.distance, 2) + " 米<br>" +
+                                "厂商：" + escapeHtml(camera.sbcs || "—"),
+                            offset: new AMap.Pixel(0, -12)
+                        });
+                        info.open(map, position);
+                    });
+                    cameraOverlays.push(marker);
+                    cameraMarkers.set(String(camera.sbbm), { marker: marker, position: position });
                 });
+                if (cameraOverlays.length) map.add(cameraOverlays);
             } catch (mapError) {
                 console.error("摄像头列表已渲染，但地图标记绘制失败：", mapError);
             }
@@ -355,10 +434,12 @@
             if (selectedCamera) selectedCamera.classList.remove("active");
             selectedCamera = row;
             row.classList.add("active");
-            const marker = cameraMarkers.get(String(code));
-            if (marker) {
-                map.setView(marker.getLatLng(), Math.max(map.getZoom(), 15));
-                marker.openPopup();
+            const item = cameraMarkers.get(String(code));
+            if (item && map) {
+                map.setZoomAndCenter(Math.max(map.getZoom(), 15), item.position);
+                const camera = item.marker;
+                const info = new AMap.InfoWindow({content: "<strong>" + escapeHtml(camera.getTitle()) + "</strong>"});
+                info.open(map, item.position);
             }
         }
 
@@ -490,17 +571,48 @@
             setStatus("路线点已清空。点击地图添加起点和途经点。");
         });
 
-        map.on("click", event => {
-            if (isSearching) return;
-            const point = [Number(event.latlng.lng.toFixed(6)), Number(event.latlng.lat.toFixed(6))];
-            routePoints.push(point);
-            $("coordinates").value = routePoints.map(item => item.join(",")).join("\n");
-            updateRoute();
-            setStatus("已添加路线点 " + routePoints.length + "，点击“查询沿途摄像头”执行检索。");
-        });
+        function initializeAmap() {
+            const config = window.AMAP_CONFIG || {};
+            if (!config.key || config.key.indexOf("请填写") === 0) {
+                setStatus("请先在 src/main/resources/static/amap-config.js 中配置高德 Web 端 Key 和安全密钥。", "error");
+                return;
+            }
+            window._AMapSecurityConfig = { securityJsCode: config.securityJsCode || "" };
+            AMapLoader.load({
+                key: config.key,
+                version: "2.0",
+                plugins: ["AMap.Scale", "AMap.ToolBar"]
+            }).then(loadedAMap => {
+                AMap = loadedAMap;
+                map = new AMap.Map("map", {
+                    viewMode: "2D",
+                    zoom: 13,
+                    center: [113.274, 23.132],
+                    resizeEnable: true
+                });
+                map.addControl(new AMap.Scale());
+                map.addControl(new AMap.ToolBar({ position: "RB" }));
+                map.on("click", event => {
+                    if (isSearching) return;
+                    const mapPoint = [Number(event.lnglat.getLng().toFixed(6)), Number(event.lnglat.getLat().toFixed(6))];
+                    const point = $("coordType").value === "GCJ-02"
+                        ? mapPoint : gcj02ToWgs84(mapPoint[0], mapPoint[1]);
+                    routePoints.push(point);
+                    $("coordinates").value = routePoints.map(item => item.join(",")).join("\n");
+                    updateRoute();
+                    setStatus("已添加路线点 " + routePoints.length + "，点击“查询沿途摄像头”执行检索。");
+                });
+                updateRoute();
+                setStatus("高德地图加载成功。可输入路线坐标或点击地图添加路线点。", "ok");
+            }).catch(error => {
+                console.error("高德地图加载失败：", error);
+                setStatus("高德地图加载失败，请检查 Key、安全密钥、域名白名单及网络。", "error");
+            });
+        }
 
+        $("coordType").addEventListener("change", updateRoute);
         $("coordinates").value = routePoints.map(point => point.join(",")).join("\n");
-        updateRoute();
+        initializeAmap();
     })();
 </script>
 </body>
