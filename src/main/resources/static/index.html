@@ -404,7 +404,7 @@
                     const longitude = Number(camera.x);
                     const latitude = Number(camera.y);
                     if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
-                    const position = toMapPosition([longitude, latitude], "WGS84");
+                    const position = toMapPosition([longitude, latitude], $("coordType").value);
                     const marker = new AMap.Marker({
                         position: position,
                         title: camera.sbmc || "未命名设备",
