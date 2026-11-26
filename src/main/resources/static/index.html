@@ -321,6 +321,8 @@
                         const info = new AMap.InfoWindow({
                             content: "<strong>" + escapeHtml(camera.sbmc || "未命名设备") + "</strong><br>" +
                                 "设备编码：" + escapeHtml(camera.sbbm) + "<br>" +
+                                "坐标（" + escapeHtml($("coordType").value) + "）：" +
+                                longitude.toFixed(6) + ", " + latitude.toFixed(6) + "<br>" +
                                 "距路线：" + formatNumber(camera.distance, 2) + " 米<br>" +
                                 "厂商：" + escapeHtml(camera.sbcs || "—") + "<br>" +
                                 "行政区：" + escapeHtml(camera.xzqmc || "—") + "<br>" +
