@@ -309,11 +309,6 @@
             })[char]);
         }
 
-        function formatNumber(value, digits) {
-            const number = Number(value);
-            return Number.isFinite(number) ? number.toFixed(digits) : "—";
-        }
-
         function renderCameras(cameras, sourceType) {
             lastCameraResults = cameras.slice();
             lastCameraResultsType = cameras.length ? sourceType : null;
