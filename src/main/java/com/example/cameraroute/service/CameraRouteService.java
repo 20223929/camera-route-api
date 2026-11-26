@@ -67,6 +67,21 @@ public class CameraRouteService {
                 pageSize
         );
 
+        // The database stores camera coordinates in WGS84. Convert only the
+        // response coordinates when the request contract specifies GCJ-02.
+        if (coordinateType == CoordinateType.GCJ_02) {
+            for (CameraResponse camera : page.getData()) {
+                if (camera.getX() == null || camera.getY() == null) {
+                    continue;
+                }
+                CoordinateConverter.Point converted = CoordinateConverter.toGcj02(
+                        camera.getX(), camera.getY()
+                );
+                camera.setX(converted.getLongitude());
+                camera.setY(converted.getLatitude());
+            }
+        }
+
         log.info(
                 "event=route.camera.query.completed resultCount={} total={} pageNum={} pageSize={} durationMs={}",
                 page.getData().size(), page.getTotal(), pageNum, pageSize,
