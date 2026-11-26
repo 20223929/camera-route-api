@@ -33,6 +33,16 @@ public final class CoordinateConverter {
         return new Point(lon, lat);
     }
 
+    /**
+     * Convert the WGS84 camera storage coordinates to GCJ-02 for responses
+     * when the request uses GCJ-02. Coordinates outside China remain unchanged.
+     */
+    public static Point toGcj02(double longitude, double latitude) {
+        double[] result = new double[2];
+        wgs84ToGcj02(longitude, latitude, result);
+        return new Point(result[0], result[1]);
+    }
+
     private static void wgs84ToGcj02(double lon, double lat, double[] result) {
         if (outsideChina(lon, lat)) {
             result[0] = lon;
