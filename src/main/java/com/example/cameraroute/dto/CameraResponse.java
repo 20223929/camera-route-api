@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 public class CameraResponse {
 
     private String sbbm;
+    private String jpbh;
     private String sbmc;
     private String sbcs;
     private Double x;
@@ -18,5 +19,5 @@ public class CameraResponse {
     private String xzqmc;
     private String pcsbm;
     private String pcsmc;
-    private double distance;
+
 }
