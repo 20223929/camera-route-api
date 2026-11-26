@@ -28,5 +28,11 @@ class CoordinateConverterTest {
         );
         assertEquals(103.8198d, point.getLongitude(), 0.0d);
         assertEquals(1.3521d, point.getLatitude(), 0.0d);
+
+        CoordinateConverter.Point restored = CoordinateConverter.toWgs84(
+                103.8198d, 1.3521d, CoordinateType.GCJ_02
+        );
+        assertEquals(103.8198d, restored.getLongitude(), 0.0d);
+        assertEquals(1.3521d, restored.getLatitude(), 0.0d);
     }
 }
