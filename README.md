@@ -124,6 +124,27 @@
 
 ## 5. 配置
 
+### 5.1 高德地图前端配置
+
+前端地图使用高德地图 JavaScript API 2.0。首次部署前，编辑：
+
+`src/main/resources/static/amap-config.js`
+
+填写高德开放平台创建的「Web端（JS API）」Key 和对应安全密钥：
+
+```javascript
+window.AMAP_CONFIG = {
+    key: "你的Web端JS_API_Key",
+    securityJsCode: "你的JS_API安全密钥"
+};
+```
+
+Key 和安全密钥均需配置；安全密钥必须在加载 JS API 前设置。开发环境可按上述方式配置，生产环境建议使用高德官方推荐的服务端代理方式保护安全密钥。Key 的域名白名单应包含实际访问页面的域名和端口。
+
+地图底图坐标系为 GCJ-02。前端地图显示时会将接口使用的 WGS84 路线和摄像头坐标转换为 GCJ-02；地图点击添加路线点时，会根据当前坐标系选择将点击坐标转换为 WGS84 或保留 GCJ-02，再提交给后端。不会改变后端 API 的坐标系约定。
+
+### 5.2 服务端配置
+
 `application.yml` 中只配置查询参数，不配置摄像头表名：
 
 ```yaml
