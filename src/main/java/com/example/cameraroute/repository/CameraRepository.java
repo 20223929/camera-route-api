@@ -44,7 +44,7 @@ public class CameraRepository {
                 .append("SELECT geom::geography AS geog ")
                 .append("FROM route_geometries ")
                 .append("), candidates AS ( ")
-                .append("SELECT c.sbbm, c.sbmc, c.sbcs, c.x, c.y, c.xzqbm, c.xzqmc, ")
+                .append("SELECT c.sbbm, c.jpbh, c.sbmc, c.sbcs, c.x, c.y, c.xzqbm, c.xzqmc, ")
                 .append("c.pcsbm, c.pcsmc, ")
                 .append("ST_Distance(c.geom::geography, r.geog) AS distance_m ")
                 .append("FROM ").append(CAMERA_TABLE).append(" c ")
@@ -54,7 +54,7 @@ public class CameraRepository {
                 .append("AND c.geom IS NOT NULL ")
                 .append("), deduplicated AS ( ")
                 .append("SELECT DISTINCT ON (sbbm) ")
-                .append("sbbm, sbmc, sbcs, x, y, xzqbm, xzqmc, ")
+                .append("sbbm, jpbh, sbmc, sbcs, x, y, xzqbm, xzqmc, ")
                 .append("pcsbm, pcsmc, distance_m ")
                 .append("FROM candidates ")
                 .append("ORDER BY sbbm, distance_m ")
@@ -64,9 +64,8 @@ public class CameraRepository {
                 .append("SELECT * FROM deduplicated ")
                 .append("ORDER BY distance_m ASC, sbbm ASC LIMIT ? OFFSET ? ")
                 .append(") ")
-                .append("SELECT p.sbbm, p.sbmc, p.sbcs, p.x, p.y, p.xzqbm, p.xzqmc, ")
+                .append("SELECT p.sbbm, p.jpbh, p.sbmc, p.sbcs, p.x, p.y, p.xzqbm, p.xzqmc, ")
                 .append("p.pcsbm, p.pcsmc, ")
-                .append("ROUND(p.distance_m::numeric, 2) AS distance, ")
                 .append("t.total_count ")
                 .append("FROM total t LEFT JOIN paged p ON TRUE ")
                 .append("ORDER BY p.distance_m ASC NULLS LAST, p.sbbm ASC NULLS LAST");
@@ -145,6 +144,7 @@ public class CameraRepository {
             }
             data.add(new CameraResponse(
                     sbbm,
+                    resultSet.getString("jpbh"),
                     resultSet.getString("sbmc"),
                     resultSet.getString("sbcs"),
                     resultSet.getObject("x") == null
@@ -154,8 +154,7 @@ public class CameraRepository {
                     resultSet.getString("xzqbm"),
                     resultSet.getString("xzqmc"),
                     resultSet.getString("pcsbm"),
-                    resultSet.getString("pcsmc"),
-                    resultSet.getDouble("distance")
+                    resultSet.getString("pcsmc")
             ));
         }
 
