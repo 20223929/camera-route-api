@@ -422,7 +422,14 @@
                         info.open(map, position);
                     });
                     cameraOverlays.push(marker);
-                    cameraMarkers.set(String(camera.sbbm), { marker: marker, position: position });
+                    cameraMarkers.set(String(camera.sbbm), {
+                        marker: marker,
+                        position: position,
+                        name: camera.sbmc || "未命名设备",
+                        code: camera.sbbm,
+                        distance: camera.distance,
+                        vendor: camera.sbcs || "—"
+                    });
                 });
                 if (cameraOverlays.length) map.add(cameraOverlays);
             } catch (mapError) {
@@ -437,8 +444,12 @@
             const item = cameraMarkers.get(String(code));
             if (item && map) {
                 map.setZoomAndCenter(Math.max(map.getZoom(), 15), item.position);
-                const camera = item.marker;
-                const info = new AMap.InfoWindow({content: "<strong>" + escapeHtml(camera.getTitle()) + "</strong>"});
+                const info = new AMap.InfoWindow({
+                    content: "<strong>" + escapeHtml(item.name) + "</strong><br>" +
+                        "设备编码：" + escapeHtml(item.code) + "<br>" +
+                        "距路线：" + formatNumber(item.distance, 2) + " 米<br>" +
+                        "厂商：" + escapeHtml(item.vendor)
+                });
                 info.open(map, item.position);
             }
         }
@@ -573,11 +584,11 @@
 
         function initializeAmap() {
             const config = window.AMAP_CONFIG || {};
-            if (!config.key || config.key.indexOf("请填写") === 0) {
+            if (!config.key || config.key.indexOf("请填写") === 0 || !config.securityJsCode || config.securityJsCode.indexOf("请填写") === 0) {
                 setStatus("请先在 src/main/resources/static/amap-config.js 中配置高德 Web 端 Key 和安全密钥。", "error");
                 return;
             }
-            window._AMapSecurityConfig = { securityJsCode: config.securityJsCode || "" };
+            window._AMapSecurityConfig = { securityJsCode: config.securityJsCode };
             AMapLoader.load({
                 key: config.key,
                 version: "2.0",
